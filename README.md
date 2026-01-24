@@ -8,7 +8,7 @@ Source code will be released (hopefully) soon.
 # Setup  
 Copy MascotME's "com" folder into your game JAR file.  
 Various performance and compatibility hacks can be enabled by creating "mascotme.ini" file in JAR archive root.  
-See [INI-CONFIG.md](INI-CONFIG.md) for mode details.
+See [INI-CONFIG.md](INI-CONFIG.md) for more detail.
 # Issues  
 Due to inability to access MIDP Graphics framebuffer some of the semitransparent geometry [can render with artifacts](screenshots/RobotAlliance_blending.png).  
 Some of the compatibility hacks (such as fbClearColor) may solve this issue, or at least make it less visible.  
