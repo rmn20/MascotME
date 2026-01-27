@@ -1,5 +1,6 @@
 # mascotme.ini
 Various performance and compatibility hacks can be enabled by creating mascotme.ini file in jar archive root.  
+See mascotme.ini if you need an example initialization file.  
 You also can disable or enable various hacks by accessing MascotME class fields thru KEmulator's memory view.  
 
 ## Debug options:  
