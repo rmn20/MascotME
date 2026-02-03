@@ -330,7 +330,6 @@ public class Graphics3D {
 		bindAccum += (int) (System.currentTimeMillis() - startTime);
 	}
 	
-	//Todo maybe clear only clipped area of framebuffer?
 	private final void clearFB(int color) {
 		int[] fb = frameBuffer;
 		final int fbLen = fbWidth * fbHeight;
