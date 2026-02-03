@@ -5,7 +5,14 @@ You also can disable or enable various hacks by accessing MascotME class fields 
 
 ## Debug options:  
 ### showFPS (disabled by default, 0 or 1)
-FPS counter.
+FPS counter.  
+  
+### showTimeMetrics (disabled by default, 0 or 1)  
+Detailed frametime metrics.  
+Includes Graphic3D.bind, .flush, .release calls, and figure, primitives, command lists submitting.  
+  
+### showHeapUsage (disabled by default, 0 or 1)  
+Heap memory usage. Warning, can reduce performance.  
   
 ## Frame buffer related hacks:  
 ### fbClearColor (black by default, specify color in RRGGBB format)  
@@ -13,6 +20,11 @@ Compatibility hack, does not affect performance.
 Color used to clear framebuffer when Graphics3D is bind.  
 Can be used to reduce graphical artifacts in games that draw semitransparent geometry over 2D graphics.  
 -1 can be used to specify to clear framebuffer with last 2D color used on screen.  
+  
+### fbSizeWorkaround (disabled by default, 0 or 1)  
+Compatibility hack, does not affect performance.  
+Uses dummy Canvas object to detect framebuffer size.  
+Can reduce graphical artifacts in games that use viewport clipping.  
   
 ### halfResRender (disabled by default, 0 or 1)  
 Performance hack, high performance impact.  
