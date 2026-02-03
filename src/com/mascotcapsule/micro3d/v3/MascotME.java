@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class MascotME {
-	static String version = "MascotME beta";
+	static String version = "MascotME 1.0";
 	
 	// Debug options:
 	
@@ -18,7 +18,7 @@ public class MascotME {
 	static boolean showFPS = false;
 	
 	// Detailed frametime metrics.
-	// Includes Graphic3D bind, flush, release calls, figure, primitives and command list submitting.
+	// Includes Graphic3D.bind, .flush, .release calls, and figure, primitives, command lists submitting.
 	static boolean showTimeMetrics = false;
 	
 	// Heap memory usage. Warning, can reduce performance.
@@ -35,7 +35,7 @@ public class MascotME {
 	
 	// Compatibility hack, does not affect performance.
 	// Uses dummy Canvas object to detect framebuffer size.
-	// Can reduce graphical artifacts in games that change draw clipping area.
+	// Can reduce graphical artifacts in games that use viewport clipping.
 	static boolean fbSizeWorkaround = false;
 	
 	// Performance hack, high performance impact.
