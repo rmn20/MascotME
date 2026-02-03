@@ -1,0 +1,1 @@
+gcc -xc -P -E -C Rasterizer.java -o ../src/com/mascotcapsule/micro3d/v3/Rasterizer.java
