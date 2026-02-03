@@ -33,7 +33,7 @@
 
 final static void  FUNC_NAME
 (
-	int[] frameBuffer, int fbWidth, int fbHeight,
+	int[] frameBuffer, int fbWidth,
 	int clipX1, int clipY1, int clipX2, int clipY2,
 	int ax, int ay, 
 	int bx, int by, 
@@ -228,7 +228,7 @@ final static void  FUNC_NAME
 				switch (blendMode) {
 					default:
 						FN_NAME_COMBINED(FUNC_NAME, _replace) (
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipX2,
 							y_start, y_end_draw,
 							#ifdef TEX
@@ -258,7 +258,7 @@ final static void  FUNC_NAME
 						break;
 					case 1:
 						FN_NAME_COMBINED(FUNC_NAME, _half) (
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipX2,
 							y_start, y_end_draw,
 							#ifdef TEX
@@ -288,7 +288,7 @@ final static void  FUNC_NAME
 						break;
 					case 2:
 						FN_NAME_COMBINED(FUNC_NAME, _add) (
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipX2,
 							y_start, y_end_draw,
 							#ifdef TEX
@@ -318,7 +318,7 @@ final static void  FUNC_NAME
 						break;
 					case 3:
 						FN_NAME_COMBINED(FUNC_NAME, _sub) (
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipX2,
 							y_start, y_end_draw,
 							#ifdef TEX

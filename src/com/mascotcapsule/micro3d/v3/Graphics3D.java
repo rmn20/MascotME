@@ -712,7 +712,7 @@ public class Graphics3D {
 						int color = 0xff000000 | (header >>> 8);
 
 						Rasterizer.drawLine(
-								frameBuffer, fbWidth, fbHeight, 
+								frameBuffer, fbWidth, 
 								clipX1, clipY1, clipX2, clipY2,
 								x1, y1, x2, y2, 
 								color, blendMode
@@ -759,7 +759,7 @@ public class Graphics3D {
 						int shade = (tex.palette.length == 256) ? 0 : 31;
 
 						Rasterizer.fillTriangleAffineT(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipY1, clipX2, clipY2,
 								x1, y1, x2, y2, x3, y3,
 								u0, v0, u1, v0, u1, v1,
@@ -767,7 +767,7 @@ public class Graphics3D {
 						);
 
 						Rasterizer.fillTriangleAffineT(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipY1, clipX2, clipY2,
 								x1, y1, x3, y3, x4, y4,
 								u0, v0, u1, v1, u0, v1,
@@ -846,7 +846,7 @@ public class Graphics3D {
 			if (!lighting || flatLighting) {
 				if (!envMapping) {
 					Rasterizer.fillTriangleAffineC(
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipY1, clipX2, clipY2,
 							x0, y0, x1, y1, x2, y2,
 							texCol,
@@ -855,7 +855,7 @@ public class Graphics3D {
 					);
 				} else {
 					Rasterizer.fillTriangleAffineCE(
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipY1, clipX2, clipY2,
 							x0, y0, x1, y1, x2, y2,
 							texCol,
@@ -868,7 +868,7 @@ public class Graphics3D {
 			} else {
 				if (!envMapping) {
 					Rasterizer.fillTriangleAffineCL(
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipY1, clipX2, clipY2,
 							x0, y0, x1, y1, x2, y2,
 							texCol,
@@ -877,7 +877,7 @@ public class Graphics3D {
 					);
 				} else {
 					Rasterizer.fillTriangleAffineCLE(
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipY1, clipX2, clipY2,
 							x0, y0, x1, y1, x2, y2,
 							texCol,
@@ -914,7 +914,7 @@ public class Graphics3D {
 			if (!lighting || flatLighting) {
 				if (!envMapping) {
 					Rasterizer.fillTriangleAffineT(
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipY1, clipX2, clipY2,
 							x0, y0, x1, y1, x2, y2,
 							au, av, bu, bv, cu, cv,
@@ -924,7 +924,7 @@ public class Graphics3D {
 					);
 				} else {
 					Rasterizer.fillTriangleAffineTE(
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipY1, clipX2, clipY2,
 							x0, y0, x1, y1, x2, y2,
 							au, av, bu, bv, cu, cv,
@@ -938,7 +938,7 @@ public class Graphics3D {
 			} else {
 				if (!envMapping) {
 					Rasterizer.fillTriangleAffineTL(
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipY1, clipX2, clipY2,
 							x0, y0, x1, y1, x2, y2,
 							au, av, bu, bv, cu, cv,
@@ -948,7 +948,7 @@ public class Graphics3D {
 					);
 				} else {
 					Rasterizer.fillTriangleAffineTLE(
-							frameBuffer, fbWidth, fbHeight,
+							frameBuffer, fbWidth,
 							clipX1, clipY1, clipX2, clipY2,
 							x0, y0, x1, y1, x2, y2,
 							au, av, bu, bv, cu, cv,
@@ -1380,7 +1380,6 @@ public class Graphics3D {
 			//cbd
 			if (startTriangle(mat, texCol, envmapTexId, v2, v1, v3, v0, true)) {
 				if (texCol >= 0) {
-					//Maybe unpack uvs in submit?
 					int data = quads[readOffset + 6];
 					int bu = (data) & 0xff00;
 					int bv = (data << 8) & 0xff00;

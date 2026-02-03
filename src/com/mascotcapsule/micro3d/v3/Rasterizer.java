@@ -36,7 +36,7 @@ public class Rasterizer {
 	}
 
 	static void drawLine(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipY1, int clipX2, int clipY2,
 			int x0, int y0, int x1, int y1,
 			int color, int blendMode) {
@@ -73,7 +73,7 @@ public class Rasterizer {
 	// ENVMAP (environment mapping)
 	//Textured triangles
 	final static void fillTriangleAffineT(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipY1, int clipX2, int clipY2,
 			int ax, int ay,
 			int bx, int by,
@@ -250,7 +250,7 @@ public class Rasterizer {
 				switch(blendMode) {
 					default:
 						fillTriangleAffineT_replace(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -260,7 +260,7 @@ public class Rasterizer {
 						break;
 					case 1:
 						fillTriangleAffineT_half(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -270,7 +270,7 @@ public class Rasterizer {
 						break;
 					case 2:
 						fillTriangleAffineT_add(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -280,7 +280,7 @@ public class Rasterizer {
 						break;
 					case 3:
 						fillTriangleAffineT_sub(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -319,7 +319,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineT_replace(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -414,7 +414,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineT_half(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -522,7 +522,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineT_add(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -652,7 +652,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineT_sub(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -782,7 +782,7 @@ public class Rasterizer {
 	}
 
 	final static void fillTriangleAffineTL(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipY1, int clipX2, int clipY2,
 			int ax, int ay,
 			int bx, int by,
@@ -964,7 +964,7 @@ public class Rasterizer {
 				switch(blendMode) {
 					default:
 						fillTriangleAffineTL_replace(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -974,7 +974,7 @@ public class Rasterizer {
 						break;
 					case 1:
 						fillTriangleAffineTL_half(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -984,7 +984,7 @@ public class Rasterizer {
 						break;
 					case 2:
 						fillTriangleAffineTL_add(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -994,7 +994,7 @@ public class Rasterizer {
 						break;
 					case 3:
 						fillTriangleAffineTL_sub(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -1033,7 +1033,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTL_replace(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -1088,7 +1088,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTL_half(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -1144,7 +1144,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTL_add(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -1204,7 +1204,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTL_sub(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -1264,7 +1264,7 @@ public class Rasterizer {
 	}
 
 	final static void fillTriangleAffineTE(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipY1, int clipX2, int clipY2,
 			int ax, int ay,
 			int bx, int by,
@@ -1461,7 +1461,7 @@ public class Rasterizer {
 				switch(blendMode) {
 					default:
 						fillTriangleAffineTE_replace(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -1473,7 +1473,7 @@ public class Rasterizer {
 						break;
 					case 1:
 						fillTriangleAffineTE_half(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -1485,7 +1485,7 @@ public class Rasterizer {
 						break;
 					case 2:
 						fillTriangleAffineTE_add(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -1497,7 +1497,7 @@ public class Rasterizer {
 						break;
 					case 3:
 						fillTriangleAffineTE_sub(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -1538,7 +1538,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTE_replace(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -1602,7 +1602,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTE_half(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -1667,7 +1667,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTE_add(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -1736,7 +1736,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTE_sub(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -1805,7 +1805,7 @@ public class Rasterizer {
 	}
 
 	final static void fillTriangleAffineTLE(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipY1, int clipX2, int clipY2,
 			int ax, int ay,
 			int bx, int by,
@@ -2007,7 +2007,7 @@ public class Rasterizer {
 				switch(blendMode) {
 					default:
 						fillTriangleAffineTLE_replace(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -2019,7 +2019,7 @@ public class Rasterizer {
 						break;
 					case 1:
 						fillTriangleAffineTLE_half(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -2031,7 +2031,7 @@ public class Rasterizer {
 						break;
 					case 2:
 						fillTriangleAffineTLE_add(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -2043,7 +2043,7 @@ public class Rasterizer {
 						break;
 					case 3:
 						fillTriangleAffineTLE_sub(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								u, du_left, du, v, dv_left, dv,
@@ -2084,7 +2084,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTLE_replace(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -2148,7 +2148,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTLE_half(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -2213,7 +2213,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTLE_add(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -2282,7 +2282,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineTLE_sub(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
@@ -2351,7 +2351,7 @@ public class Rasterizer {
 	}
 	//Color triangles
 	final static void fillTriangleAffineC(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipY1, int clipX2, int clipY2,
 			int ax, int ay,
 			int bx, int by,
@@ -2489,7 +2489,7 @@ public class Rasterizer {
 				switch(blendMode) {
 					default:
 						fillTriangleAffineC_replace(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRGB,
@@ -2497,7 +2497,7 @@ public class Rasterizer {
 						break;
 					case 1:
 						fillTriangleAffineC_half(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRGB,
@@ -2505,7 +2505,7 @@ public class Rasterizer {
 						break;
 					case 2:
 						fillTriangleAffineC_add(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRGB,
@@ -2513,7 +2513,7 @@ public class Rasterizer {
 						break;
 					case 3:
 						fillTriangleAffineC_sub(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRGB,
@@ -2550,7 +2550,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineC_replace(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRGB,
@@ -2596,7 +2596,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineC_half(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRGB,
@@ -2643,7 +2643,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineC_add(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRGB,
@@ -2693,7 +2693,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineC_sub(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRGB,
@@ -2743,7 +2743,7 @@ public class Rasterizer {
 	}
 
 	final static void fillTriangleAffineCL(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipY1, int clipX2, int clipY2,
 			int ax, int ay,
 			int bx, int by,
@@ -2908,7 +2908,7 @@ public class Rasterizer {
 				switch(blendMode) {
 					default:
 						fillTriangleAffineCL_replace(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRB, colorG,
@@ -2917,7 +2917,7 @@ public class Rasterizer {
 						break;
 					case 1:
 						fillTriangleAffineCL_half(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRB, colorG,
@@ -2926,7 +2926,7 @@ public class Rasterizer {
 						break;
 					case 2:
 						fillTriangleAffineCL_add(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRB, colorG,
@@ -2935,7 +2935,7 @@ public class Rasterizer {
 						break;
 					case 3:
 						fillTriangleAffineCL_sub(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRB, colorG,
@@ -2973,7 +2973,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCL_replace(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRB, int colorG,
@@ -3023,7 +3023,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCL_half(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRB, int colorG,
@@ -3074,7 +3074,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCL_add(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRB, int colorG,
@@ -3128,7 +3128,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCL_sub(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRB, int colorG,
@@ -3182,7 +3182,7 @@ public class Rasterizer {
 	}
 
 	final static void fillTriangleAffineCE(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipY1, int clipX2, int clipY2,
 			int ax, int ay,
 			int bx, int by,
@@ -3363,7 +3363,7 @@ public class Rasterizer {
 				switch(blendMode) {
 					default:
 						fillTriangleAffineCE_replace(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRGB,
@@ -3373,7 +3373,7 @@ public class Rasterizer {
 						break;
 					case 1:
 						fillTriangleAffineCE_half(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRGB,
@@ -3383,7 +3383,7 @@ public class Rasterizer {
 						break;
 					case 2:
 						fillTriangleAffineCE_add(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRGB,
@@ -3393,7 +3393,7 @@ public class Rasterizer {
 						break;
 					case 3:
 						fillTriangleAffineCE_sub(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRGB,
@@ -3432,7 +3432,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCE_replace(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRGB,
@@ -3487,7 +3487,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCE_half(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRGB,
@@ -3543,7 +3543,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCE_add(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRGB,
@@ -3602,7 +3602,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCE_sub(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRGB,
@@ -3661,7 +3661,7 @@ public class Rasterizer {
 	}
 
 	final static void fillTriangleAffineCLE(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipY1, int clipX2, int clipY2,
 			int ax, int ay,
 			int bx, int by,
@@ -3846,7 +3846,7 @@ public class Rasterizer {
 				switch(blendMode) {
 					default:
 						fillTriangleAffineCLE_replace(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRB, colorG,
@@ -3857,7 +3857,7 @@ public class Rasterizer {
 						break;
 					case 1:
 						fillTriangleAffineCLE_half(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRB, colorG,
@@ -3868,7 +3868,7 @@ public class Rasterizer {
 						break;
 					case 2:
 						fillTriangleAffineCLE_add(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRB, colorG,
@@ -3879,7 +3879,7 @@ public class Rasterizer {
 						break;
 					case 3:
 						fillTriangleAffineCLE_sub(
-								frameBuffer, fbWidth, fbHeight,
+								frameBuffer, fbWidth,
 								clipX1, clipX2,
 								y_start, y_end_draw,
 								colorRB, colorG,
@@ -3919,7 +3919,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCLE_replace(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRB, int colorG,
@@ -3978,7 +3978,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCLE_half(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRB, int colorG,
@@ -4038,7 +4038,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCLE_add(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRB, int colorG,
@@ -4101,7 +4101,7 @@ public class Rasterizer {
 	}
 
 	private final static void fillTriangleAffineCLE_sub(
-			int[] frameBuffer, int fbWidth, int fbHeight,
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int colorRB, int colorG,

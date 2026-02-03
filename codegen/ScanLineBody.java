@@ -1,5 +1,5 @@
 (
-	int[] frameBuffer, int fbWidth, int fbHeight,
+	int[] frameBuffer, int fbWidth,
 	int clipX1, int clipX2,
 	int y_start, int y_end,
 	#ifdef TEX

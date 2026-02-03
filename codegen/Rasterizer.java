@@ -42,7 +42,7 @@ public class Rasterizer {
 	}
 	
 	static void drawLine(
-			int[] frameBuffer, int fbWidth, int fbHeight, 
+			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipY1, int clipX2, int clipY2,
 			int x0, int y0, int x1, int y1, 
 			int color, int blendMode
