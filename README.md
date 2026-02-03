@@ -11,8 +11,12 @@ Source code will be released (hopefully) soon.
 Copy MascotME's "com" folder into your game JAR file.  
 Various performance and compatibility hacks can be enabled by creating "mascotme.ini" file in JAR archive root.  
 See [INI-CONFIG.md](INI-CONFIG.md) for more detail.
-# Issues  
+# Known issues  
 Due to inability to access MIDP Graphics framebuffer some of the semitransparent geometry [can render with artifacts](/screenshots/RobotAlliance_blending.png).  
 Some of the compatibility hacks (such as fbClearColor) may solve this issue, or at least make it less visible.  
-# Special thanks  
-Soon...
+Since there's also no proper way to get framebuffer resolution, some games that use viewport clipping can look stretched or render at incorrect screen coordinates. fbSizeWorkaround can solve this issue in some cases.  
+# Special thanks to...  
+[woesss](https://github.com/woesss/) for MascotCapsule v3 implementation in [JL-Mod](https://github.com/woesss/JL-Mod/)  
+[klaxons1](https://github.com/klaxons1/) for continuous testing and moral support  
+[shinovon](https://github.com/shinovon/) for additional help  
+[minexew](https://github.com/minexew/) for [MascotCapsule Archaeology](https://github.com/j2me-preservation/MascotCapsule/)
