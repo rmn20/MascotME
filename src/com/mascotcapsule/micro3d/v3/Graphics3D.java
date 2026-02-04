@@ -2035,7 +2035,7 @@ public class Graphics3D {
 		
 		bindTexture(tex);
 
-		preallocPrimBuffers(numPrims, 5);
+		preallocPrimBuffers(numPrims, 7);
 
 		int primDataUsed = this.primDataUsed;
 		int[] primData = this.primData;
