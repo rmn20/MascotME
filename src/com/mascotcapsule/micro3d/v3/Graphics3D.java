@@ -583,8 +583,8 @@ public class Graphics3D {
 	}
 	
 	private final void quickSort(int low, int high) {
-		if (high - low <= 50) {
-			selectionSort(low, high);
+		if (high - low <= 25) {
+			insertionSort(low, high);
 			return;
 		}
 		
@@ -626,29 +626,6 @@ public class Graphics3D {
 			}
 			
 			sortPrimIdx[j + 1] = tp;
-		}
-	}
-
-	private final void selectionSort(int low, int high) {
-		int[] sortPrimIdx = this.sortPrimIdx;
-		int[] primData = this.primData;
-		
-		for (int i = high; i > low; i--) {
-			int tp = 0;
-			int tz = Integer.MAX_VALUE;
-			
-			for (int j = low; j <= i; j++) {
-				int tmp = primData[sortPrimIdx[j]];
-				
-				if (tmp <= tz) {
-					tp = j;
-					tz = tmp;
-				}
-			}
-			
-			int tmp = sortPrimIdx[tp];
-			sortPrimIdx[tp] = sortPrimIdx[i];
-			sortPrimIdx[i] = tmp;
 		}
 	}
 
