@@ -989,9 +989,14 @@ public class Graphics3D {
 		projNear = near;
 		projFar = far;
 
-		int fov = angle;
-		float scale = 0.5f / (float) Math.tan(fov / 4096.0f * Math.PI);
-		projScaleX = (int) (fbWidth * scale);
+		float scale = 0.5f / (float) Math.tan(angle / 4096.0f * Math.PI);
+		
+		if (!MascotME.horizontalFovFix) {
+			projScaleX = (int) (fbWidth * scale);
+		} else {
+			projScaleX = (int) (fbWidth * scale / 320 * 240 / fbWidth * fbHeight);
+		}
+		
 		projScaleY = projScaleX;
 		if (MascotME.halfResRender) projScaleY /= 2;
 	}

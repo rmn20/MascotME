@@ -24,6 +24,11 @@ public class MascotME {
 	// Heap memory usage. Warning, can reduce performance.
 	static boolean showHeapUsage = false;
 	
+	// Enhancements:
+	
+	// Converts horizonal fov to vertical in order to fix narrow camera when portrait mode games are launched in landscape mode.
+	static boolean horizontalFovFix;
+	
 	// Frame buffer related hacks:
 	
 	// Compatibility hack, does not affect performance.
