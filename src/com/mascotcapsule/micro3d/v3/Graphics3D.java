@@ -1828,6 +1828,7 @@ public class Graphics3D {
 		
 		int scaleX = projScaleX, scaleY = projScaleY;
 		int centerX = drawCenterX, centerY = drawCenterY;
+		int fbWidth = this.fbWidth, fbHeight = this.fbHeight;
 		
 		int projectionMode = this.projectionMode;
 		int perspectiveNear = this.projNear;
@@ -1917,6 +1918,7 @@ public class Graphics3D {
 		
 		int scaleX = projScaleX, scaleY = projScaleY;
 		int centerX = drawCenterX, centerY = drawCenterY;
+		int fbWidth = this.fbWidth, fbHeight = this.fbHeight;
 		
 		int projectionMode = this.projectionMode;
 		int perspectiveNear = this.projNear;
@@ -2050,6 +2052,7 @@ public class Graphics3D {
 
 		int scaleX = projScaleX, scaleY = projScaleY;
 		int centerX = drawCenterX, centerY = drawCenterY;
+		int fbWidth = this.fbWidth, fbHeight = this.fbHeight;
 		int pxHScale = MascotME.halfResRender ? 1 : 0;
 		
 		int projectionMode = this.projectionMode;
