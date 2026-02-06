@@ -2690,13 +2690,13 @@ public class Graphics3D {
 
 		if ((clippingStages & NEAR_CLIP) != 0) {
 			int[] output = clipBuffers[1];
-			vertices1 = splitTriangleVerts(data1, vertices1, 2, projNear, null, output);
+			vertices1 = clipTriangleVerts(data1, vertices1, 2, projNear, output, true);
 			data1 = output;
 		}
 
 		if ((clippingStages & FAR_CLIP) != 0) {
 			int[] output = clipBuffers[2];
-			vertices1 = splitTriangleVerts(data1, vertices1, 2, projFar, output, null) >>> 16;
+			vertices1 = clipTriangleVerts(data1, vertices1, 2, projFar, output, false);
 			data1 = output;
 		}
 
@@ -2782,6 +2782,62 @@ public class Graphics3D {
 		}
 
 		return (vtxCountLeft << 16) | vtxCountRight;
+	}
+
+	private final int clipTriangleVerts(int[] vertices, int vtxCount, int clipAttrib, int clipThreshold, int[] outVerts, boolean larger) {
+		int vtxCountRes = 0;
+		int attsCount = this.clipAttsCount;
+		
+		int sign = larger ? -1 : 1;
+
+		for(int i = 0; i < vtxCount; i++) {
+			int offsetOrig = i * attsCount;
+			int nextI = i == (vtxCount - 1) ? 0 : i + 1;
+			int offsetNext = nextI * attsCount;
+
+			int a = vertices[offsetOrig + clipAttrib];
+			int b = vertices[offsetNext + clipAttrib];
+
+			//Toon shaded triangles can overlap when whole edge are on the threshold but I dont care
+			if ((a - clipThreshold) * sign <= 0) {
+				int offsetLeft = vtxCountRes * attsCount;
+				vtxCountRes++;
+
+				for(int t = 0; t < attsCount; t++) {
+					outVerts[offsetLeft + t] = vertices[offsetOrig + t];
+				}
+			}
+
+			boolean clip = (a - clipThreshold) * (b - clipThreshold) < 0;
+
+			if (clip) {
+				int offsetLeft = vtxCountRes * attsCount;
+
+				if (a < clipThreshold) {
+					//Swap a and b to reduce seams
+					int tmp = a; a = b; b = tmp;
+					tmp = offsetOrig; offsetOrig = offsetNext; offsetNext = tmp;
+				}
+
+				int tmpZ = (clipThreshold - a) * 4096 / (b - a);
+
+				for (int t = 0; t < attsCount; t++) {
+					int att;
+
+					int ax = vertices[offsetOrig + t];
+					int bx = vertices[offsetNext + t];
+
+					att = ((bx - ax) * tmpZ >> 12) + ax;
+
+					outVerts[offsetLeft + t] = att;
+				}
+
+				outVerts[offsetLeft + clipAttrib] = clipThreshold;
+				vtxCountRes++;
+			}
+		}
+
+		return vtxCountRes;
 	}
 
 	private final void submitClippedVerts(int[] verts, int vertsCount, int sortZ) {
