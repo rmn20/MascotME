@@ -672,7 +672,7 @@ public class Graphics3D {
 						int color = 0xff000000 | (header >>> 8);
 
 						if (blendMode != 0) {
-							Rasterizer.blendPixel(color, frameBuffer[drawX], blendMode);
+							color = Rasterizer.blendPixel(color, frameBuffer[drawX], blendMode);
 						}
 
 						frameBuffer[drawX] = color;
