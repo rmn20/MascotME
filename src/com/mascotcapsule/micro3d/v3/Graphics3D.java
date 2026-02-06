@@ -457,7 +457,7 @@ public class Graphics3D {
 				boundGraphics.setClip(clipX, clipY, clipW, clipH);
 				
 				int prevTx = boundGraphics.getTranslateX();
-				int prevTy = boundGraphics.getTranslateX();
+				int prevTy = boundGraphics.getTranslateY();
 				boundGraphics.translate(-prevTx, -prevTy);
 				
 				drawFB(clipX, clipY, clipW, clipH);
@@ -500,7 +500,7 @@ public class Graphics3D {
 		graphics.setClip(0, 0, fbWidth, MascotME.halfResRender ? fbHeight * 2 : fbHeight);
 				
 		int prevTx = graphics.getTranslateX();
-		int prevTy = graphics.getTranslateX();
+		int prevTy = graphics.getTranslateY();
 		graphics.translate(-prevTx, -prevTy);
 		
 		if (MascotME.no2DInbetween) {
