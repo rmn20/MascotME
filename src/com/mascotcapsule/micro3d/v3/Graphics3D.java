@@ -158,7 +158,18 @@ public class Graphics3D {
 	
 	private int allowedClippingStages;
 	private int activeClippingStages;
-	private Clipper clipper;
+	
+	private boolean clipPolyHasUVs, clipPolyFlatNorm;
+	private boolean clipPolyHasLight, clipPolyEnvmap;
+	private int clipAttsCount;
+
+	private int clipPolyMat, clipPolyTexCol, clipPolyEnvmapId, clipPolyNormalId;
+
+	//Clip vertices input & outputs
+	private int[][] clipBuffers;
+
+	private int[] tmpClipProjVtx;
+	private short[] tmpClipLightVtx, tmpClipEnvUVs;
 
 	public Graphics3D() {
 		//Prealloc temp buffers
@@ -185,8 +196,19 @@ public class Graphics3D {
 		for (int i = 0; i < boneCount; i++) {
 			boneTransforms[i] = new AffineTrans();
 		}
-			
-		clipper = new Clipper();
+		
+		//Clipping buffers
+		clipBuffers = new int[][] {
+			new int[(3 + 2 + 1 + 2) * 3], //Clipping input
+			new int[(3 + 2 + 1 + 2) * 4], //Near plane clip output
+			new int[(3 + 2 + 1 + 2) * 6], //Far plane clip output
+			new int[(3 + 2 + 1 + 2) * 12],//Toon clip output 1
+			new int[(3 + 2 + 1 + 2) * 12] //Toon clip output 2
+		};
+
+		tmpClipProjVtx = new int[12 * 3];
+		tmpClipLightVtx = new short[12];
+		tmpClipEnvUVs = new short[12 * 2];
 	}
 	
 	public final void dispose() {
@@ -210,7 +232,12 @@ public class Graphics3D {
 		boneTransforms = null;
 		tmpVec = null;
 		
-		clipper = null;
+		//Clipping buffers
+		clipBuffers = null;
+
+		tmpClipProjVtx = null;
+		tmpClipLightVtx = null;
+		tmpClipEnvUVs = null;
 	}
 
 	private final void preallocBoneTransforms(int size) {
@@ -2473,7 +2500,7 @@ public class Graphics3D {
 			
 			if (clippingStages != 0) {
 				this.activeClippingStages = clippingStages;
-				clipper.startTriangleClip(
+				startTriangleClip(
 						clippingStages, 
 						mat, texCol, envMapTexId, 
 						v0, v1, v2, normalId
@@ -2567,7 +2594,7 @@ public class Graphics3D {
 			
 			this.primDataUsed += 3;
 		} else {
-			clipper.setTriangleUVsClip(au, av, bu, bv, cu, cv);
+			setTriangleUVsClip(au, av, bu, bv, cu, cv);
 		}
 	}
 	
@@ -2577,295 +2604,273 @@ public class Graphics3D {
 			return;
 		}
 		
-		activeClippingStages = 0;
-		clipper.envTriangleClip(sortZ);
+		endTriangleClip(sortZ);
 	}
-	
-	private class Clipper {
-		private int clippingStages;
-		private boolean uvs, flat, light, envmap;
-		private int attsCount;
-		
-		private int mat, texCol, envMapTexId, normalId;
-		
-		private int[][] clipBuffers = new int[][] {
-			new int[(3 + 2 + 1 + 2) * 3], //Clipping input
-			new int[(3 + 2 + 1 + 2) * 4], //Near plane clip output
-			new int[(3 + 2 + 1 + 2) * 6], //Far plane clip output
-			new int[(3 + 2 + 1 + 2) * 12],//Toon clip output 1
-			new int[(3 + 2 + 1 + 2) * 12] //Toon clip output 2
-		};
-		
-		private int[] tmpProjVtx = new int[12 * 3];
-		private short[] tmpLightVtx = new short[12], tmpEnvUVs = new short[12 * 2];
 
-		final void startTriangleClip(
-				int clippingStages,
-				int mat, int texCol, int envMapTexId,
-				int v0, int v1, int v2, int normalId
-		) {
-			this.clippingStages = clippingStages;
-			this.mat = mat;
-			this.texCol = texCol;
-			this.envMapTexId = envMapTexId;
-			this.normalId = normalId;
-			
-			uvs = texCol >= 0;
-			flat = (mat & Figure.MAT_FLAT_NORMAL) != 0;
-			light = !flat && ((mat & Figure.MAT_LIGHTING) != 0);
-			envmap = light && ((mat & Figure.MAT_SPECULAR) != 0);
+	private final void startTriangleClip(
+			int clippingStages,
+			int mat, int texCol, int envMapTexId,
+			int v0, int v1, int v2, int normalId
+	) {
+		this.clipPolyMat = mat;
+		this.clipPolyTexCol = texCol;
+		this.clipPolyEnvmapId = envMapTexId;
+		this.clipPolyNormalId = normalId;
 
-			int attsCount = 3;
-			if(uvs) attsCount += 2;
-			if(light) attsCount++;
-			if(envmap) attsCount += 2;
-			this.attsCount = attsCount;
-			
-			int[] input = clipBuffers[0];
+		clipPolyHasUVs = texCol >= 0;
+		clipPolyFlatNorm = (mat & Figure.MAT_FLAT_NORMAL) != 0;
+		clipPolyHasLight = !clipPolyFlatNorm && ((mat & Figure.MAT_LIGHTING) != 0);
+		clipPolyEnvmap = clipPolyHasLight && ((mat & Figure.MAT_SPECULAR) != 0);
 
-			int[] tranVtx2 = tranVtx;
-			int[] projVtx2 = projVtx;
-			input[0] = tranVtx2[v0 * 2];
-			input[1] = tranVtx2[v0 * 2 + 1];
-			input[2] = projVtx2[v0 * 3 + 2];
-			
-			input[attsCount] = tranVtx2[v1 * 2];
-			input[attsCount + 1] = tranVtx2[v1 * 2 + 1];
-			input[attsCount + 2] = projVtx2[v1 * 3 + 2];
+		int attsCount = 3;
+		if(clipPolyHasUVs) attsCount += 2;
+		if(clipPolyHasLight) attsCount++;
+		if(clipPolyEnvmap) attsCount += 2;
+		this.clipAttsCount = attsCount;
 
-			input[attsCount * 2] = tranVtx2[v2 * 2];
-			input[attsCount * 2 + 1] = tranVtx2[v2 * 2 + 1];
-			input[attsCount * 2 + 2] = projVtx2[v2 * 3 + 2];
-			
-			int offset = 3;
-				
-			if (light) {
-				short[] lightVtx2 = lightVtx;
-				input[offset] = lightVtx2[v0];
-				input[attsCount + offset] = lightVtx2[v1];
-				input[attsCount * 2 + offset] = lightVtx2[v2];
-				offset++;
+		int[] input = clipBuffers[0];
 
-				if (envmap) {
-					short[] envUVs2 = envUVs;
-					input[offset] = envUVs2[v0 * 2];
-					input[offset + 1] = envUVs2[v0 * 2 + 1];
+		int[] tranVtx2 = tranVtx;
+		int[] projVtx2 = projVtx;
+		input[0] = tranVtx2[v0 * 2];
+		input[1] = tranVtx2[v0 * 2 + 1];
+		input[2] = projVtx2[v0 * 3 + 2];
 
-					input[attsCount + offset] = envUVs2[v1 * 2];
-					input[attsCount + offset + 1] = envUVs2[v1 * 2 + 1];
+		input[attsCount] = tranVtx2[v1 * 2];
+		input[attsCount + 1] = tranVtx2[v1 * 2 + 1];
+		input[attsCount + 2] = projVtx2[v1 * 3 + 2];
 
-					input[attsCount * 2 + offset] = envUVs2[v2 * 2];
-					input[attsCount * 2 + offset + 1] = envUVs2[v2 * 2 + 1];
-					offset += 2;
-				}
+		input[attsCount * 2] = tranVtx2[v2 * 2];
+		input[attsCount * 2 + 1] = tranVtx2[v2 * 2 + 1];
+		input[attsCount * 2 + 2] = projVtx2[v2 * 3 + 2];
+
+		int offset = 3;
+
+		if (clipPolyHasLight) {
+			short[] lightVtx2 = lightVtx;
+			input[offset] = lightVtx2[v0];
+			input[attsCount + offset] = lightVtx2[v1];
+			input[attsCount * 2 + offset] = lightVtx2[v2];
+			offset++;
+
+			if (clipPolyEnvmap) {
+				short[] envUVs2 = envUVs;
+				input[offset] = envUVs2[v0 * 2];
+				input[offset + 1] = envUVs2[v0 * 2 + 1];
+
+				input[attsCount + offset] = envUVs2[v1 * 2];
+				input[attsCount + offset + 1] = envUVs2[v1 * 2 + 1];
+
+				input[attsCount * 2 + offset] = envUVs2[v2 * 2];
+				input[attsCount * 2 + offset + 1] = envUVs2[v2 * 2 + 1];
+				offset += 2;
 			}
 		}
+	}
 
-		final void setTriangleUVsClip(int au, int av, int bu, int bv, int cu, int cv) {
-			int offset = attsCount - 2;
-			
-			int[] input = clipBuffers[0];
-			
-			input[offset] = au;
-			input[offset + 1] = av;
+	private final void setTriangleUVsClip(int au, int av, int bu, int bv, int cu, int cv) {
+		int offset = clipAttsCount - 2;
 
-			input[attsCount + offset] = bu;
-			input[attsCount + offset + 1] = bv;
+		int[] input = clipBuffers[0];
 
-			input[attsCount * 2 + offset] = cu;
-			input[attsCount * 2 + offset + 1] = cv;
+		input[offset] = au;
+		input[offset + 1] = av;
+
+		input[clipAttsCount + offset] = bu;
+		input[clipAttsCount + offset + 1] = bv;
+
+		input[clipAttsCount * 2 + offset] = cu;
+		input[clipAttsCount * 2 + offset + 1] = cv;
+	}
+
+	private final void endTriangleClip(int sortZ) {
+		int[] data1 = clipBuffers[0], data2 = null;
+		int vertices1 = 3, vertices2 = 0;
+		int clippingStages = this.activeClippingStages;
+
+		if ((clippingStages & NEAR_CLIP) != 0) {
+			int[] output = clipBuffers[1];
+			vertices1 = splitTriangleVerts(data1, vertices1, 2, projNear, null, output);
+			data1 = output;
 		}
 
-		final void envTriangleClip(int sortZ) {
-			int[] data1 = clipBuffers[0], data2 = null;
-			int vertices1 = 3, vertices2 = 0;
-			int clippingStages = this.clippingStages;
-
-			if ((clippingStages & NEAR_CLIP) != 0) {
-				int[] output = clipBuffers[1];
-				vertices1 = clip(data1, vertices1, 2, projNear, null, output);
-				data1 = output;
-			}
-
-			if ((clippingStages & FAR_CLIP) != 0) {
-				int[] output = clipBuffers[2];
-				vertices1 = clip(data1, vertices1, 2, projFar, output, null) >>> 16;
-				data1 = output;
-			}
-
-			if ((clippingStages & TOON_SPLIT) != 0) {
-				int[] output1 = clipBuffers[3];
-				int[] output2 = clipBuffers[4];
-				vertices2 = clip(data1, vertices1, 3, efxToonThreshold << 4, output1, output2);
-				vertices1 = vertices2 >>> 16;
-				vertices2 &= 0xffff;
-				data1 = output1;
-				data2 = output2;
-			}
-			
-			submitResult(data1, vertices1, sortZ);
-			if (data2 != null) submitResult(data2, vertices2, sortZ);
+		if ((clippingStages & FAR_CLIP) != 0) {
+			int[] output = clipBuffers[2];
+			vertices1 = splitTriangleVerts(data1, vertices1, 2, projFar, output, null) >>> 16;
+			data1 = output;
 		}
-		
-		private final int clip(int[] vertices, int vtxCount, int clipAttrib, int clipThreshold, int[] left, int[] right) {
-			int vtxCountLeft = 0, vtxCountRight = 0;
-			int attsCount = this.attsCount;
 
-			for(int i = 0; i < vtxCount; i++) {
-				int offsetOrig = i * attsCount;
-				int nextI = i == (vtxCount - 1) ? 0 : i + 1;
-				int offsetNext = nextI * attsCount;
-				
-				int a = vertices[offsetOrig + clipAttrib];
-				int b = vertices[offsetNext + clipAttrib];
-				
-				//Toon shaded triangles can overlap when whole edge are on the threshold but I dont care
-				if (left != null && a <= clipThreshold) {
-					int offsetLeft = vtxCountLeft * attsCount;
-					vtxCountLeft++;
+		if ((clippingStages & TOON_SPLIT) != 0) {
+			int[] output1 = clipBuffers[3];
+			int[] output2 = clipBuffers[4];
+			vertices2 = splitTriangleVerts(data1, vertices1, 3, efxToonThreshold << 4, output1, output2);
+			vertices1 = vertices2 >>> 16;
+			vertices2 &= 0xffff;
+			data1 = output1;
+			data2 = output2;
+		}
 
-					for(int t = 0; t < attsCount; t++) {
-						left[offsetLeft + t] = vertices[offsetOrig + t];
-					}
-				}
-				
-				if (right != null && a >= clipThreshold) {
-					int offsetRight = vtxCountRight * attsCount;
-					vtxCountRight++;
+		this.activeClippingStages = 0;
 
-					for(int t = 0; t < attsCount; t++) {
-						right[offsetRight + t] = vertices[offsetOrig + t];
-					}
-				}
+		submitClippedVerts(data1, vertices1, sortZ);
+		if (data2 != null) submitClippedVerts(data2, vertices2, sortZ);
+	}
 
-				boolean clip = (a - clipThreshold) * (b - clipThreshold) < 0;
+	private final int splitTriangleVerts(int[] vertices, int vtxCount, int clipAttrib, int clipThreshold, int[] left, int[] right) {
+		int vtxCountLeft = 0, vtxCountRight = 0;
+		int attsCount = this.clipAttsCount;
 
-				if (clip) {
-					int offsetLeft = vtxCountLeft * attsCount;
-					int offsetRight = vtxCountRight * attsCount;
-					
-					if (a < clipThreshold) {
-						//Swap a and b to reduce seams
-						int tmp = a; a = b; b = tmp;
-						tmp = offsetOrig; offsetOrig = offsetNext; offsetNext = tmp;
-					}
+		for(int i = 0; i < vtxCount; i++) {
+			int offsetOrig = i * attsCount;
+			int nextI = i == (vtxCount - 1) ? 0 : i + 1;
+			int offsetNext = nextI * attsCount;
 
-					int tmpZ = (clipThreshold - a) * 4096 / (b - a);
+			int a = vertices[offsetOrig + clipAttrib];
+			int b = vertices[offsetNext + clipAttrib];
 
-					for (int t = 0; t < attsCount; t++) {
-						int att;
+			//Toon shaded triangles can overlap when whole edge are on the threshold but I dont care
+			if (a <= clipThreshold) {
+				int offsetLeft = vtxCountLeft * attsCount;
+				vtxCountLeft++;
 
-						int ax = vertices[offsetOrig + t];
-						int bx = vertices[offsetNext + t];
-
-						att = ((bx - ax) * tmpZ >> 12) + ax;
-
-						if(left != null) left[offsetLeft + t] = att;
-						if(right != null) right[offsetRight + t] = att;
-					}
-
-					if (left != null) {
-						left[offsetLeft + clipAttrib] = clipThreshold;
-						vtxCountLeft++;
-					}
-					if (right != null) {
-						right[offsetRight + clipAttrib] = clipThreshold;
-						vtxCountRight++;
-					}
+				for(int t = 0; t < attsCount; t++) {
+					left[offsetLeft + t] = vertices[offsetOrig + t];
 				}
 			}
 
-			return (vtxCountLeft << 16) | vtxCountRight;
+			if (a >= clipThreshold) {
+				int offsetRight = vtxCountRight * attsCount;
+				vtxCountRight++;
+
+				for(int t = 0; t < attsCount; t++) {
+					right[offsetRight + t] = vertices[offsetOrig + t];
+				}
+			}
+
+			boolean clip = (a - clipThreshold) * (b - clipThreshold) < 0;
+
+			if (clip) {
+				int offsetLeft = vtxCountLeft * attsCount;
+				int offsetRight = vtxCountRight * attsCount;
+
+				if (a < clipThreshold) {
+					//Swap a and b to reduce seams
+					int tmp = a; a = b; b = tmp;
+					tmp = offsetOrig; offsetOrig = offsetNext; offsetNext = tmp;
+				}
+
+				int tmpZ = (clipThreshold - a) * 4096 / (b - a);
+
+				for (int t = 0; t < attsCount; t++) {
+					int att;
+
+					int ax = vertices[offsetOrig + t];
+					int bx = vertices[offsetNext + t];
+
+					att = ((bx - ax) * tmpZ >> 12) + ax;
+
+					left[offsetLeft + t] = att;
+					right[offsetRight + t] = att;
+				}
+
+				left[offsetLeft + clipAttrib] = clipThreshold;
+				vtxCountLeft++;
+
+				right[offsetRight + clipAttrib] = clipThreshold;
+				vtxCountRight++;
+			}
 		}
-		
-		private final void submitResult(int[] verts, int vertsCount, int sortZ) {
-			if (vertsCount < 3) return;
-			
-			int projMode = projectionMode;
-			int scaleX = projScaleX, scaleY = projScaleY;
-			int centerX = drawCenterX, centerY = drawCenterY;
-			
-			int attsCount = this.attsCount;
-			int[] tmpProjVtx = this.tmpProjVtx;
-			short[] tmpLightVtx = this.tmpLightVtx, tmpEnvUVs = this.tmpEnvUVs;
-			
+
+		return (vtxCountLeft << 16) | vtxCountRight;
+	}
+
+	private final void submitClippedVerts(int[] verts, int vertsCount, int sortZ) {
+		if (vertsCount < 3) return;
+
+		int projMode = projectionMode;
+		int scaleX = projScaleX, scaleY = projScaleY;
+		int centerX = drawCenterX, centerY = drawCenterY;
+
+		int attsCount = this.clipAttsCount;
+		int[] tmpProjVtx = this.tmpClipProjVtx;
+		short[] tmpLightVtx = this.tmpClipLightVtx, tmpEnvUVs = this.tmpClipEnvUVs;
+
+		for (int i = 0; i < vertsCount; i++) {
+			int x = verts[i * attsCount];
+			int y = verts[i * attsCount + 1];
+			int z = verts[i * attsCount + 2];
+
+			if (projMode == PROJ_PERSPECTIVE) {
+				x = ((x * scaleX) / z) + centerX;
+				y = ((y * scaleY) / z) + centerY;
+			} else {
+				x = ((x * scaleX) >> 12) + centerX;
+				y = ((y * scaleY) >> 12) + centerY;
+			}
+
+			//Workaround to prevent integer overflow in rasterizer
+			//Originally this code was in flushPolygon but due to JIT issues on Symbian 9.3
+			//It was moved to Clipper and processVertices
+			final int max = 32767, min = -32768;
+			x = x < min ? min : x > max ? max : x;
+			y = y < min ? min : y > max ? max : y;
+
+			tmpProjVtx[i * 3	] = x;
+			tmpProjVtx[i * 3 + 1] = y;
+			tmpProjVtx[i * 3 + 2] = z;
+		}
+
+		int offset = 3;
+
+		if (clipPolyHasLight) {
 			for (int i = 0; i < vertsCount; i++) {
-				int x = verts[i * attsCount];
-				int y = verts[i * attsCount + 1];
-				int z = verts[i * attsCount + 2];
-				
-				if (projMode == PROJ_PERSPECTIVE) {
-					x = ((x * scaleX) / z) + centerX;
-					y = ((y * scaleY) / z) + centerY;
-				} else {
-					x = ((x * scaleX) >> 12) + centerX;
-					y = ((y * scaleY) >> 12) + centerY;
+				tmpLightVtx[i] = (short) verts[i * attsCount + 3];
+			}
+			offset++;
+
+			if (clipPolyEnvmap) {
+				for (int i = 0; i < vertsCount; i++) {
+					tmpEnvUVs[i * 2] =	 (short) verts[i * attsCount + 4];
+					tmpEnvUVs[i * 2 + 1] = (short) verts[i * attsCount + 5];
 				}
 
-				//Workaround to prevent integer overflow in rasterizer
-				//Originally this code was in flushPolygon but due to JIT issues on Symbian 9.3
-				//It was moved to Clipper and processVertices
-				final int max = 32767, min = -32768;
-				x = x < min ? min : x > max ? max : x;
-				y = y < min ? min : y > max ? max : y;
-				
-				tmpProjVtx[i * 3	] = x;
-				tmpProjVtx[i * 3 + 1] = y;
-				tmpProjVtx[i * 3 + 2] = z;
+				offset += 2;
 			}
-			
-			int offset = 3;
-			
-			if (light) {
-				for (int i = 0; i < vertsCount; i++) {
-					tmpLightVtx[i] = (short) verts[i * attsCount + 3];
+		}
+
+		int[] bckProjVtx = projVtx;
+		short[] bckLightVtx = lightVtx, bckEnvUVs = envUVs;
+		projVtx = tmpProjVtx;
+		if (clipPolyHasLight) {
+			lightVtx = tmpLightVtx;
+			envUVs = tmpEnvUVs;
+		}
+
+		boolean tmpLight = (clipPolyMat & Figure.MAT_LIGHTING) != 0;
+		boolean tmpEnv = tmpLight && ((clipPolyMat & Figure.MAT_SPECULAR) != 0);
+		int polyStride = calcPolygonStride(clipPolyHasUVs, clipPolyFlatNorm, tmpLight, tmpEnv);
+		preallocPrimBuffers(vertsCount - 1, polyStride);
+
+		for (int i = 1; i < vertsCount - 1; i++) {
+			int v0 = 0, v1 = i, v2 = i + 1;
+
+			if (startTriangle(clipPolyMat, clipPolyTexCol, clipPolyEnvmapId, v0, v1, v2, clipPolyNormalId, false)) {
+				if (clipPolyHasUVs) {
+					setTriangleUVs(
+						verts[v0 * attsCount + offset], verts[v0 * attsCount + offset + 1],
+						verts[v1 * attsCount + offset], verts[v1 * attsCount + offset + 1],
+						verts[v2 * attsCount + offset], verts[v2 * attsCount + offset + 1]
+					);
 				}
-				offset++;
-				
-				if (envmap) {
-					for (int i = 0; i < vertsCount; i++) {
-						tmpEnvUVs[i * 2] =	 (short) verts[i * attsCount + 4];
-						tmpEnvUVs[i * 2 + 1] = (short) verts[i * attsCount + 5];
-					}
-					
-					offset += 2;
-				}
+
+				endTriangle(sortZ);
 			}
-			
-			int[] bckProjVtx = projVtx;
-			short[] bckLightVtx = lightVtx, bckEnvUVs = envUVs;
-			projVtx = tmpProjVtx;
-			if (light) {
-				lightVtx = tmpLightVtx;
-				envUVs = tmpEnvUVs;
-			}
-			
-			boolean tmpLight = (mat & Figure.MAT_LIGHTING) != 0;
-			boolean tmpEnv = tmpLight && ((mat & Figure.MAT_SPECULAR) != 0);
-			int polyStride = calcPolygonStride(uvs, flat, tmpLight, tmpEnv);
-			preallocPrimBuffers(vertsCount - 1, polyStride);
-			
-			for (int i = 1; i < vertsCount - 1; i++) {
-				int v0 = 0, v1 = i, v2 = i + 1;
-				
-				if (startTriangle(mat, texCol, envMapTexId, v0, v1, v2, normalId, false)) {
-					if (uvs) {
-						setTriangleUVs(
-							verts[v0 * attsCount + offset], verts[v0 * attsCount + offset + 1],
-							verts[v1 * attsCount + offset], verts[v1 * attsCount + offset + 1],
-							verts[v2 * attsCount + offset], verts[v2 * attsCount + offset + 1]
-						);
-					}
-					
-					endTriangle(sortZ);
-				}
-			}
-			
-			projVtx = bckProjVtx;
-			if (light) {
-				lightVtx = bckLightVtx;
-				envUVs = bckEnvUVs;
-			}
+		}
+
+		projVtx = bckProjVtx;
+		if (clipPolyHasLight) {
+			lightVtx = bckLightVtx;
+			envUVs = bckEnvUVs;
 		}
 	}
 }
