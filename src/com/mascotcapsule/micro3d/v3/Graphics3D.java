@@ -2428,13 +2428,15 @@ public class Graphics3D {
 	) {
 		int[] projVtx = this.projVtx;
 		
-		int x0 = projVtx[v0 * 3];
-		int x1 = projVtx[v1 * 3];
-		int x2 = projVtx[v2 * 3];
+		int v03 = v0 * 3, v13 = v1 * 3, v23 = v2 * 3;
 		
-		int y0 = projVtx[v0 * 3 + 1];
-		int y1 = projVtx[v1 * 3 + 1];
-		int y2 = projVtx[v2 * 3 + 1];
+		int x0 = projVtx[v03];
+		int x1 = projVtx[v13];
+		int x2 = projVtx[v23];
+		
+		int y0 = projVtx[v03 + 1];
+		int y1 = projVtx[v13 + 1];
+		int y2 = projVtx[v23 + 1];
 		
 		int clippingStages = 0;
 		
@@ -2448,9 +2450,9 @@ public class Graphics3D {
 			if (y0 >= fbH && y1 >= fbH && y2 >= fbH) return false; 
 			
 			if (projectionMode == PROJ_PERSPECTIVE) {
-				int z0 = projVtx[v0 * 3 + 2];
-				int z1 = projVtx[v1 * 3 + 2];
-				int z2 = projVtx[v2 * 3 + 2];
+				int z0 = projVtx[v03 + 2];
+				int z1 = projVtx[v13 + 2];
+				int z2 = projVtx[v23 + 2];
 			
 				int perspectiveNear = this.projNear;
 				boolean nearCull = z0 < perspectiveNear && z1 < perspectiveNear && z2 < perspectiveNear;
@@ -2501,7 +2503,6 @@ public class Graphics3D {
 			if (clippingStages != 0) {
 				this.activeClippingStages = clippingStages;
 				startTriangleClip(
-						clippingStages, 
 						mat, texCol, envMapTexId, 
 						v0, v1, v2, normalId
 				);
@@ -2565,14 +2566,18 @@ public class Graphics3D {
 					envData |= envUVs[normalId * 2 + 1] << 10;
 					primData[primDataUsed++] = envData;
 				} else {
-					int envData = envUVs[v0 * 2] << 20;
-					envData |= envUVs[v0 * 2 + 1] << 10;
-					envData |= envUVs[v1 * 2];
+					v0 <<= 1;
+					v1 <<= 1;
+					v2 <<= 1;
+					
+					int envData = envUVs[v0] << 20;
+					envData |= envUVs[v0 + 1] << 10;
+					envData |= envUVs[v1];
 					primData[primDataUsed] = envData;
 					
-					envData = envUVs[v1 * 2 + 1] << 20;
-					envData |= envUVs[v2 * 2] << 10;
-					envData |= envUVs[v2 * 2 + 1];
+					envData = envUVs[v1 + 1] << 20;
+					envData |= envUVs[v2] << 10;
+					envData |= envUVs[v2 + 1];
 					primData[primDataUsed + 1] = envData;
 					primDataUsed += 2;
 				}
@@ -2608,7 +2613,6 @@ public class Graphics3D {
 	}
 
 	private final void startTriangleClip(
-			int clippingStages,
 			int mat, int texCol, int envMapTexId,
 			int v0, int v1, int v2, int normalId
 	) {
