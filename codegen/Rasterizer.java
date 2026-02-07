@@ -5,7 +5,7 @@
 package com.mascotcapsule.micro3d.v3;
 
 public class Rasterizer {
-	private static final int fp = 12, FP = 1 << fp;
+	static final int fp = 12, FP = 1 << fp;
 	private static final int shadeFpShift = fp - 8;
 	
 	private Rasterizer() {}

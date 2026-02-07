@@ -83,10 +83,10 @@ final static void  FUNC_NAME
 	
 	#ifdef TEX
 		#ifndef LIGHT
-			int shadeOffset = shade << 8;
+			int shadeOffset = (shade >> (fp - 8)) & 0xff00;
 			#ifndef ENVMAP
 				boolean fastPath = !useColorKey;
-				fastPath &= (shade == 31 && tex.palette.length > 256) || (shade == 0 && tex.palette.length == 256);
+				fastPath &= ((shade >> fp) == 31 && tex.palette.length > 256) || (shade == 0 && tex.palette.length == 256);
 			#endif
 		#endif
 	#else
@@ -94,6 +94,7 @@ final static void  FUNC_NAME
 			final int colorRB = polyColor & 0x00ff00ff;
 			final int colorG =  polyColor & 0x0000ff00;
 		#else
+			shade >>= fp;
 			int colorRGB = 0xff000000;
 			colorRGB |= (((polyColor & 0xff0000) * (shade + 1)) >> 5) & 0xff0000;
 			colorRGB |= (((polyColor & 0x00ff00) * (shade + 1)) >> 5) & 0x00ff00;
@@ -103,11 +104,11 @@ final static void  FUNC_NAME
 
 	int tempI = cy - ay;
 	final int dx_start = ((cx - ax) << fp) / tempI;
-	IF_TEX(final int du_start = ((cu - au) << fp) / tempI;)
-	IF_TEX(final int dv_start = ((cv - av) << fp) / tempI;)
-	IF_LIGHT(final int ds_start = ((cs - as) << fp) / tempI;)
-	IF_ENVMAP(final int deu_start = ((ceu - aeu) << fp) / tempI;)
-	IF_ENVMAP(final int dev_start = ((cev - aev) << fp) / tempI;)
+	IF_TEX(final int du_start = (cu - au) / tempI;)
+	IF_TEX(final int dv_start = (cv - av) / tempI;)
+	IF_LIGHT(final int ds_start = (cs - as) / tempI;)
+	IF_ENVMAP(final int deu_start = (ceu - aeu) / tempI;)
+	IF_ENVMAP(final int dev_start = (cev - aev) / tempI;)
 
 	int dx_end = 0;
 	IF_TEX(int du_end = 0; int dv_end = 0;)
@@ -116,11 +117,11 @@ final static void  FUNC_NAME
 	if(by != ay) {
 		tempI = by - ay;
 		dx_end = ((bx - ax) << fp) / tempI;
-		IF_TEX(du_end = ((bu - au) << fp) / tempI;)
-		IF_TEX(dv_end = ((bv - av) << fp) / tempI;)
-		IF_LIGHT(ds_end = ((bs - as) << fp) / tempI;)
-		IF_ENVMAP(deu_end = ((beu - aeu) << fp) / tempI;)
-		IF_ENVMAP(dev_end = ((bev - aev) << fp) / tempI;)
+		IF_TEX(du_end = (bu - au) / tempI;)
+		IF_TEX(dv_end = (bv - av) / tempI;)
+		IF_LIGHT(ds_end = (bs - as) / tempI;)
+		IF_ENVMAP(deu_end = (beu - aeu) / tempI;)
+		IF_ENVMAP(dev_end = (bev - aev) / tempI;)
 	}
 	
 	int x_start, x_end;
@@ -129,18 +130,18 @@ final static void  FUNC_NAME
 		//Calculate scanline derivatives
 		tempI = by - ay;
 		x_start = (ax << fp) + dx_start * tempI;
-		IF_TEX(int u_start = (au << fp) + du_start * tempI;)
-		IF_TEX(int v_start = (av << fp) + dv_start * tempI;)
-		IF_LIGHT(int s_start = (as << fp) + ds_start * tempI;)
-		IF_ENVMAP(int eu_start = (aeu << fp) + deu_start * tempI;)
-		IF_ENVMAP(int ev_start = (aev << fp) + dev_start * tempI;)
+		IF_TEX(int u_start = au + du_start * tempI;)
+		IF_TEX(int v_start = av + dv_start * tempI;)
+		IF_LIGHT(int s_start = as + ds_start * tempI;)
+		IF_ENVMAP(int eu_start = aeu + deu_start * tempI;)
+		IF_ENVMAP(int ev_start = aev + dev_start * tempI;)
 
 		x_end = bx << fp;
-		IF_TEX(int u_end = bu << fp;)
-		IF_TEX(int v_end = bv << fp;)
-		IF_LIGHT(int s_end = bs << fp;)
-		IF_ENVMAP(int eu_end = beu << fp;)
-		IF_ENVMAP(int ev_end = bev << fp;)
+		IF_TEX(int u_end = bu;)
+		IF_TEX(int v_end = bv;)
+		IF_LIGHT(int s_end = bs;)
+		IF_ENVMAP(int eu_end = beu;)
+		IF_ENVMAP(int ev_end = bev;)
 
 		tempI = (x_start - x_end) >> fp;
 		//Symmetric ceil
@@ -154,11 +155,11 @@ final static void  FUNC_NAME
 	#endif
 
 	x_end = x_start = ax << fp;
-	IF_TEX(u_end = u_start = au << fp;)
-	IF_TEX(v_end = v_start = av << fp;)
-	IF_LIGHT(s_end = s_start = as << fp;)
-	IF_ENVMAP(eu_end = eu_start = aeu << fp;)
-	IF_ENVMAP(ev_end = ev_start = aev << fp;)
+	IF_TEX(u_end = u_start = au;)
+	IF_TEX(v_end = v_start = av;)
+	IF_LIGHT(s_end = s_start = as;)
+	IF_ENVMAP(eu_end = eu_start = aeu;)
+	IF_ENVMAP(ev_end = ev_start = aev;)
 	
 	int y_start = ay;
 	int y_end = by;
@@ -376,26 +377,26 @@ final static void  FUNC_NAME
 		if(cy == by) return;
 		tempI = by - ay;
 		x_start = (ax << fp) + dx_start * tempI;
-		IF_TEX(u_start = (au << fp) + du_start * tempI;)
-		IF_TEX(v_start = (av << fp) + dv_start * tempI;)
-		IF_LIGHT(s_start = (as << fp) + ds_start * tempI;)
-		IF_ENVMAP(eu_start = (aeu << fp) + deu_start * tempI;)
-		IF_ENVMAP(ev_start = (aev << fp) + dev_start * tempI;)
+		IF_TEX(u_start = au  + du_start * tempI;)
+		IF_TEX(v_start = av + dv_start * tempI;)
+		IF_LIGHT(s_start = as + ds_start * tempI;)
+		IF_ENVMAP(eu_start = aeu + deu_start * tempI;)
+		IF_ENVMAP(ev_start = aev + dev_start * tempI;)
 
 		x_end = bx << fp;
-		IF_TEX(u_end = bu << fp;)
-		IF_TEX(v_end = bv << fp;)
-		IF_LIGHT(s_end = bs << fp;)
-		IF_ENVMAP(eu_end = beu << fp;)
-		IF_ENVMAP(ev_end = bev << fp;)
+		IF_TEX(u_end = bu;)
+		IF_TEX(v_end = bv;)
+		IF_LIGHT(s_end = bs;)
+		IF_ENVMAP(eu_end = beu;)
+		IF_ENVMAP(ev_end = bev;)
 
 		tempI = cy - by;
 		dx_end = ((cx - bx) << fp) / tempI;
-		IF_TEX(du_end = ((cu - bu) << fp) / tempI;)
-		IF_TEX(dv_end = ((cv - bv) << fp) / tempI;)
-		IF_LIGHT(ds_end = ((cs - bs) << fp) / tempI;)
-		IF_ENVMAP(deu_end = ((ceu - beu) << fp) / tempI;)
-		IF_ENVMAP(dev_end = ((cev - bev) << fp) / tempI;)
+		IF_TEX(du_end = (cu - bu) / tempI;)
+		IF_TEX(dv_end = (cv - bv) / tempI;)
+		IF_LIGHT(ds_end = (cs - bs) / tempI;)
+		IF_ENVMAP(deu_end = (ceu - beu) / tempI;)
+		IF_ENVMAP(dev_end = (cev - bev) / tempI;)
 		
 		y_start = by;
 		y_end = cy;

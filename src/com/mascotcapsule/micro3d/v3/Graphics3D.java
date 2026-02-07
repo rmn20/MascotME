@@ -693,7 +693,7 @@ public class Graphics3D {
 						if (x < clipX1 || x >= clipX2) continue;
 						int y = primData[sortEntry + 1];
 						if (y < clipY1 || y >= clipY2) continue;
-						sortEntry += 2;
+						//sortEntry += 2;
 
 						int drawX = x + y * fbWidth;
 						int color = 0xff000000 | (header >>> 8);
@@ -711,7 +711,7 @@ public class Graphics3D {
 						int y1 = primData[sortEntry + 1];
 						int x2 = primData[sortEntry + 2];
 						int y2 = primData[sortEntry + 3];
-						sortEntry += 4;
+						//sortEntry += 4;
 
 						int color = 0xff000000 | (header >>> 8);
 
@@ -740,27 +740,32 @@ public class Graphics3D {
 						int sprWY = data >>> 16, sprHY = data & 0xffff;
 
 						data = primData[sortEntry + 4];
-						sortEntry += 5;
+						//sortEntry += 5;
 						
 						int u0 = data >>> 24, v0 = (data >> 16) & 0xff;
 						int u1 = (data >> 8) & 0xff, v1 = data & 0xff;
-
-						int sin = Util3D.sin(angle) / 2;
-						int cos = Util3D.cos(angle) / 2;
-
-						int x1 = x - (cos * sprWX >> 12) + (sin * sprHX >> 12);
-						int y1 = y - (cos * sprHY >> 12) - (sin * sprWY >> 12);
-
-						int x2 = x + (cos * sprWX >> 12) + (sin * sprHX >> 12);
-						int y2 = y - (cos * sprHY >> 12) + (sin * sprWY >> 12);
-
-						int x3 = x + (cos * sprWX >> 12) - (sin * sprHX >> 12);
-						int y3 = y + (cos * sprHY >> 12) + (sin * sprWY >> 12);
-
-						int x4 = x - (cos * sprWX >> 12) - (sin * sprHX >> 12);
-						int y4 = y + (cos * sprHY >> 12) - (sin * sprWY >> 12);
 						
-						int shade = (tex.palette.length == 256) ? 0 : 31;
+						u0 <<= Rasterizer.fp;
+						v0 <<= Rasterizer.fp;
+						u1 <<= Rasterizer.fp;
+						v1 <<= Rasterizer.fp;
+
+						int sin = Util3D.sin(angle);
+						int cos = Util3D.cos(angle);
+
+						int x1 = x - (cos * sprWX >> 13) + (sin * sprHX >> 13);
+						int y1 = y - (cos * sprHY >> 13) - (sin * sprWY >> 13);
+
+						int x2 = x + (cos * sprWX >> 13) + (sin * sprHX >> 13);
+						int y2 = y - (cos * sprHY >> 13) + (sin * sprWY >> 13);
+
+						int x3 = x + (cos * sprWX >> 13) - (sin * sprHX >> 13);
+						int y3 = y + (cos * sprHY >> 13) + (sin * sprWY >> 13);
+
+						int x4 = x - (cos * sprWX >> 13) - (sin * sprHX >> 13);
+						int y4 = y + (cos * sprHY >> 13) - (sin * sprWY >> 13);
+						
+						int shade = (tex.palette.length == 256) ? 0 : (31 << Rasterizer.fp);
 
 						Rasterizer.fillTriangleAffineT(
 								frameBuffer, fbWidth,
@@ -806,7 +811,7 @@ public class Graphics3D {
 		if (isColorPoly) texCol = polyData[sortEntry++];
 
 		boolean flatLighting = false;
-		int as = 31, bs = 31, cs = 31;
+		int as = 31 << Rasterizer.fp, bs = 31 << Rasterizer.fp, cs = 31 << Rasterizer.fp;
 		
 		Texture sphereTex = null;
 		int aeu = 0, aev = 0, beu = 0, bev = 0, ceu = 0, cev = 0;
@@ -816,27 +821,27 @@ public class Graphics3D {
 			flatLighting = (header & Figure.MAT_FLAT_NORMAL) != 0;
 
 			int data = polyData[sortEntry++];
-			as = (data & 1023) >> 5;
+			as = (data & 1023) << (Rasterizer.fp - 5);
 
 			if (!flatLighting && !toon) {
-				bs = ((data >> 10) & 1023) >> 5;
-				cs = ((data >> 20) & 1023) >> 5;
+				bs = ((data >> 10) & 1023) << (Rasterizer.fp - 5);
+				cs = ((data >> 20) & 1023) << (Rasterizer.fp - 5);
 			}
 
 			if (envMapping) {
 				sphereTex = textures[header >>> 20];
 
 				data = polyData[sortEntry++];
-				aeu = ((data >> 20) & 1023) >> 4;
-				aev = ((data >> 10) & 1023) >> 4;
+				aeu = ((data >> 20) & 1023) << (Rasterizer.fp - 4);
+				aev = ((data >> 10) & 1023) << (Rasterizer.fp - 4);
 
 				if (!flatLighting) {
-					beu = (data & 1023) >> 4;
+					beu = (data & 1023) << (Rasterizer.fp - 4);
 
 					data = polyData[sortEntry++];
-					bev = ((data >> 20) & 1023) >> 4;
-					ceu = ((data >> 10) & 1023) >> 4;
-					cev = (data & 1023) >> 4;
+					bev = ((data >> 20) & 1023) << (Rasterizer.fp - 4);
+					ceu = ((data >> 10) & 1023) << (Rasterizer.fp - 4);
+					cev = (data & 1023) << (Rasterizer.fp - 4);
 				} else {
 					beu = ceu = aeu;
 					bev = cev = aev;
@@ -896,17 +901,17 @@ public class Graphics3D {
 			boolean useColorKey = (header & Figure.MAT_COLORKEY) != 0;
 
 			int data = polyData[sortEntry];
-			int au = data >>> 24;
-			int av = (data & 0x0000ff00) >>> 8;
+			int au = (data >>> 16) << (Rasterizer.fp - 8);
+			int av = (data & 0x0000ffff) << (Rasterizer.fp - 8);
 
 			data = polyData[sortEntry + 1];
-			int bu = data >>> 24;
-			int bv = (data & 0x0000ff00) >>> 8;
+			int bu = (data >>> 16) << (Rasterizer.fp - 8);
+			int bv = (data & 0x0000ffff) << (Rasterizer.fp - 8);
 
 			data = polyData[sortEntry + 2];
 			sortEntry += 3;
-			int cu = data >>> 24;
-			int cv = (data & 0x0000ff00) >>> 8;
+			int cu = (data >>> 16) << (Rasterizer.fp - 8);
+			int cv = (data & 0x0000ffff) << (Rasterizer.fp - 8);
 
 			Texture tex = textures[texCol];
 

@@ -7,7 +7,7 @@ package com.mascotcapsule.micro3d.v3;
 
 public class Rasterizer {
 
-	private static final int fp = 12, FP = 1 << fp;
+	static final int fp = 12, FP = 1 << fp;
 	private static final int shadeFpShift = fp - 8;
 
 	private Rasterizer() {
@@ -133,13 +133,13 @@ public class Rasterizer {
 		}
 		if(cy == ay) return;
 		if(cy <= clipY1 || ay >= clipY2) return;
-		int shadeOffset = shade << 8;
+		int shadeOffset = (shade >> (fp - 8)) & 0xff00;
 		boolean fastPath = !useColorKey;
-		fastPath &= (shade == 31 && tex.palette.length > 256) || (shade == 0 && tex.palette.length == 256);
+		fastPath &= ((shade >> fp) == 31 && tex.palette.length > 256) || (shade == 0 && tex.palette.length == 256);
 		int tempI = cy - ay;
 		final int dx_start = ((cx - ax) << fp) / tempI;
-		final int du_start = ((cu - au) << fp) / tempI;
-		final int dv_start = ((cv - av) << fp) / tempI;
+		final int du_start = (cu - au) / tempI;
+		final int dv_start = (cv - av) / tempI;
 
 
 
@@ -151,8 +151,8 @@ public class Rasterizer {
 		if(by != ay) {
 			tempI = by - ay;
 			dx_end = ((bx - ax) << fp) / tempI;
-			du_end = ((bu - au) << fp) / tempI;
-			dv_end = ((bv - av) << fp) / tempI;
+			du_end = (bu - au) / tempI;
+			dv_end = (bv - av) / tempI;
 
 
 
@@ -161,14 +161,14 @@ public class Rasterizer {
 		//Calculate scanline derivatives
 		tempI = by - ay;
 		x_start = (ax << fp) + dx_start * tempI;
-		int u_start = (au << fp) + du_start * tempI;
-		int v_start = (av << fp) + dv_start * tempI;
+		int u_start = au + du_start * tempI;
+		int v_start = av + dv_start * tempI;
 
 
 
 		x_end = bx << fp;
-		int u_end = bu << fp;
-		int v_end = bv << fp;
+		int u_end = bu;
+		int v_end = bv;
 
 
 
@@ -182,8 +182,8 @@ public class Rasterizer {
 
 
 		x_end = x_start = ax << fp;
-		u_end = u_start = au << fp;
-		v_end = v_start = av << fp;
+		u_end = u_start = au;
+		v_end = v_start = av;
 
 
 
@@ -308,21 +308,21 @@ public class Rasterizer {
 			if(cy == by) return;
 			tempI = by - ay;
 			x_start = (ax << fp) + dx_start * tempI;
-			u_start = (au << fp) + du_start * tempI;
-			v_start = (av << fp) + dv_start * tempI;
+			u_start = au + du_start * tempI;
+			v_start = av + dv_start * tempI;
 
 
 
 			x_end = bx << fp;
-			u_end = bu << fp;
-			v_end = bv << fp;
+			u_end = bu;
+			v_end = bv;
 
 
 
 			tempI = cy - by;
 			dx_end = ((cx - bx) << fp) / tempI;
-			du_end = ((cu - bu) << fp) / tempI;
-			dv_end = ((cv - bv) << fp) / tempI;
+			du_end = (cu - bu) / tempI;
+			dv_end = (cv - bv) / tempI;
 
 
 
@@ -944,9 +944,9 @@ public class Rasterizer {
 		if(cy <= clipY1 || ay >= clipY2) return;
 		int tempI = cy - ay;
 		final int dx_start = ((cx - ax) << fp) / tempI;
-		final int du_start = ((cu - au) << fp) / tempI;
-		final int dv_start = ((cv - av) << fp) / tempI;
-		final int ds_start = ((cs - as) << fp) / tempI;
+		final int du_start = (cu - au) / tempI;
+		final int dv_start = (cv - av) / tempI;
+		final int ds_start = (cs - as) / tempI;
 
 
 		int dx_end = 0;
@@ -957,9 +957,9 @@ public class Rasterizer {
 		if(by != ay) {
 			tempI = by - ay;
 			dx_end = ((bx - ax) << fp) / tempI;
-			du_end = ((bu - au) << fp) / tempI;
-			dv_end = ((bv - av) << fp) / tempI;
-			ds_end = ((bs - as) << fp) / tempI;
+			du_end = (bu - au) / tempI;
+			dv_end = (bv - av) / tempI;
+			ds_end = (bs - as) / tempI;
 
 
 		}
@@ -967,15 +967,15 @@ public class Rasterizer {
 		//Calculate scanline derivatives
 		tempI = by - ay;
 		x_start = (ax << fp) + dx_start * tempI;
-		int u_start = (au << fp) + du_start * tempI;
-		int v_start = (av << fp) + dv_start * tempI;
-		int s_start = (as << fp) + ds_start * tempI;
+		int u_start = au + du_start * tempI;
+		int v_start = av + dv_start * tempI;
+		int s_start = as + ds_start * tempI;
 
 
 		x_end = bx << fp;
-		int u_end = bu << fp;
-		int v_end = bv << fp;
-		int s_end = bs << fp;
+		int u_end = bu;
+		int v_end = bv;
+		int s_end = bs;
 
 
 		tempI = (x_start - x_end) >> fp;
@@ -988,9 +988,9 @@ public class Rasterizer {
 
 
 		x_end = x_start = ax << fp;
-		u_end = u_start = au << fp;
-		v_end = v_start = av << fp;
-		s_end = s_start = as << fp;
+		u_end = u_start = au;
+		v_end = v_start = av;
+		s_end = s_start = as;
 
 
 		int y_start = ay;
@@ -1103,22 +1103,22 @@ public class Rasterizer {
 			if(cy == by) return;
 			tempI = by - ay;
 			x_start = (ax << fp) + dx_start * tempI;
-			u_start = (au << fp) + du_start * tempI;
-			v_start = (av << fp) + dv_start * tempI;
-			s_start = (as << fp) + ds_start * tempI;
+			u_start = au + du_start * tempI;
+			v_start = av + dv_start * tempI;
+			s_start = as + ds_start * tempI;
 
 
 			x_end = bx << fp;
-			u_end = bu << fp;
-			v_end = bv << fp;
-			s_end = bs << fp;
+			u_end = bu;
+			v_end = bv;
+			s_end = bs;
 
 
 			tempI = cy - by;
 			dx_end = ((cx - bx) << fp) / tempI;
-			du_end = ((cu - bu) << fp) / tempI;
-			dv_end = ((cv - bv) << fp) / tempI;
-			ds_end = ((cs - bs) << fp) / tempI;
+			du_end = (cu - bu) / tempI;
+			dv_end = (cv - bv) / tempI;
+			ds_end = (cs - bs) / tempI;
 
 
 			y_start = by;
@@ -1443,14 +1443,14 @@ public class Rasterizer {
 		}
 		if(cy == ay) return;
 		if(cy <= clipY1 || ay >= clipY2) return;
-		int shadeOffset = shade << 8;
+		int shadeOffset = (shade >> (fp - 8)) & 0xff00;
 		int tempI = cy - ay;
 		final int dx_start = ((cx - ax) << fp) / tempI;
-		final int du_start = ((cu - au) << fp) / tempI;
-		final int dv_start = ((cv - av) << fp) / tempI;
+		final int du_start = (cu - au) / tempI;
+		final int dv_start = (cv - av) / tempI;
 
-		final int deu_start = ((ceu - aeu) << fp) / tempI;
-		final int dev_start = ((cev - aev) << fp) / tempI;
+		final int deu_start = (ceu - aeu) / tempI;
+		final int dev_start = (cev - aev) / tempI;
 		int dx_end = 0;
 		int du_end = 0;
 		int dv_end = 0;
@@ -1460,27 +1460,27 @@ public class Rasterizer {
 		if(by != ay) {
 			tempI = by - ay;
 			dx_end = ((bx - ax) << fp) / tempI;
-			du_end = ((bu - au) << fp) / tempI;
-			dv_end = ((bv - av) << fp) / tempI;
+			du_end = (bu - au) / tempI;
+			dv_end = (bv - av) / tempI;
 
-			deu_end = ((beu - aeu) << fp) / tempI;
-			dev_end = ((bev - aev) << fp) / tempI;
+			deu_end = (beu - aeu) / tempI;
+			dev_end = (bev - aev) / tempI;
 		}
 		int x_start, x_end;
 		//Calculate scanline derivatives
 		tempI = by - ay;
 		x_start = (ax << fp) + dx_start * tempI;
-		int u_start = (au << fp) + du_start * tempI;
-		int v_start = (av << fp) + dv_start * tempI;
+		int u_start = au + du_start * tempI;
+		int v_start = av + dv_start * tempI;
 
-		int eu_start = (aeu << fp) + deu_start * tempI;
-		int ev_start = (aev << fp) + dev_start * tempI;
+		int eu_start = aeu + deu_start * tempI;
+		int ev_start = aev + dev_start * tempI;
 		x_end = bx << fp;
-		int u_end = bu << fp;
-		int v_end = bv << fp;
+		int u_end = bu;
+		int v_end = bv;
 
-		int eu_end = beu << fp;
-		int ev_end = bev << fp;
+		int eu_end = beu;
+		int ev_end = bev;
 		tempI = (x_start - x_end) >> fp;
 		//Symmetric ceil
 		if(tempI < 0) tempI--;
@@ -1491,11 +1491,11 @@ public class Rasterizer {
 		final int deu = (eu_start - eu_end) / tempI;
 		final int dev = (ev_start - ev_end) / tempI;
 		x_end = x_start = ax << fp;
-		u_end = u_start = au << fp;
-		v_end = v_start = av << fp;
+		u_end = u_start = au;
+		v_end = v_start = av;
 
-		eu_end = eu_start = aeu << fp;
-		ev_end = ev_start = aev << fp;
+		eu_end = eu_start = aeu;
+		ev_end = ev_start = aev;
 		int y_start = ay;
 		int y_end = by;
 		for(int i = 0; i < 2; i++) {
@@ -1616,24 +1616,24 @@ public class Rasterizer {
 			if(cy == by) return;
 			tempI = by - ay;
 			x_start = (ax << fp) + dx_start * tempI;
-			u_start = (au << fp) + du_start * tempI;
-			v_start = (av << fp) + dv_start * tempI;
+			u_start = au + du_start * tempI;
+			v_start = av + dv_start * tempI;
 
-			eu_start = (aeu << fp) + deu_start * tempI;
-			ev_start = (aev << fp) + dev_start * tempI;
+			eu_start = aeu + deu_start * tempI;
+			ev_start = aev + dev_start * tempI;
 			x_end = bx << fp;
-			u_end = bu << fp;
-			v_end = bv << fp;
+			u_end = bu;
+			v_end = bv;
 
-			eu_end = beu << fp;
-			ev_end = bev << fp;
+			eu_end = beu;
+			ev_end = bev;
 			tempI = cy - by;
 			dx_end = ((cx - bx) << fp) / tempI;
-			du_end = ((cu - bu) << fp) / tempI;
-			dv_end = ((cv - bv) << fp) / tempI;
+			du_end = (cu - bu) / tempI;
+			dv_end = (cv - bv) / tempI;
 
-			deu_end = ((ceu - beu) << fp) / tempI;
-			dev_end = ((cev - bev) << fp) / tempI;
+			deu_end = (ceu - beu) / tempI;
+			dev_end = (cev - bev) / tempI;
 			y_start = by;
 			y_end = cy;
 		}
@@ -2000,11 +2000,11 @@ public class Rasterizer {
 		if(cy <= clipY1 || ay >= clipY2) return;
 		int tempI = cy - ay;
 		final int dx_start = ((cx - ax) << fp) / tempI;
-		final int du_start = ((cu - au) << fp) / tempI;
-		final int dv_start = ((cv - av) << fp) / tempI;
-		final int ds_start = ((cs - as) << fp) / tempI;
-		final int deu_start = ((ceu - aeu) << fp) / tempI;
-		final int dev_start = ((cev - aev) << fp) / tempI;
+		final int du_start = (cu - au) / tempI;
+		final int dv_start = (cv - av) / tempI;
+		final int ds_start = (cs - as) / tempI;
+		final int deu_start = (ceu - aeu) / tempI;
+		final int dev_start = (cev - aev) / tempI;
 		int dx_end = 0;
 		int du_end = 0;
 		int dv_end = 0;
@@ -2014,27 +2014,27 @@ public class Rasterizer {
 		if(by != ay) {
 			tempI = by - ay;
 			dx_end = ((bx - ax) << fp) / tempI;
-			du_end = ((bu - au) << fp) / tempI;
-			dv_end = ((bv - av) << fp) / tempI;
-			ds_end = ((bs - as) << fp) / tempI;
-			deu_end = ((beu - aeu) << fp) / tempI;
-			dev_end = ((bev - aev) << fp) / tempI;
+			du_end = (bu - au) / tempI;
+			dv_end = (bv - av) / tempI;
+			ds_end = (bs - as) / tempI;
+			deu_end = (beu - aeu) / tempI;
+			dev_end = (bev - aev) / tempI;
 		}
 		int x_start, x_end;
 		//Calculate scanline derivatives
 		tempI = by - ay;
 		x_start = (ax << fp) + dx_start * tempI;
-		int u_start = (au << fp) + du_start * tempI;
-		int v_start = (av << fp) + dv_start * tempI;
-		int s_start = (as << fp) + ds_start * tempI;
-		int eu_start = (aeu << fp) + deu_start * tempI;
-		int ev_start = (aev << fp) + dev_start * tempI;
+		int u_start = au + du_start * tempI;
+		int v_start = av + dv_start * tempI;
+		int s_start = as + ds_start * tempI;
+		int eu_start = aeu + deu_start * tempI;
+		int ev_start = aev + dev_start * tempI;
 		x_end = bx << fp;
-		int u_end = bu << fp;
-		int v_end = bv << fp;
-		int s_end = bs << fp;
-		int eu_end = beu << fp;
-		int ev_end = bev << fp;
+		int u_end = bu;
+		int v_end = bv;
+		int s_end = bs;
+		int eu_end = beu;
+		int ev_end = bev;
 		tempI = (x_start - x_end) >> fp;
 		//Symmetric ceil
 		if(tempI < 0) tempI--;
@@ -2045,11 +2045,11 @@ public class Rasterizer {
 		final int deu = (eu_start - eu_end) / tempI;
 		final int dev = (ev_start - ev_end) / tempI;
 		x_end = x_start = ax << fp;
-		u_end = u_start = au << fp;
-		v_end = v_start = av << fp;
-		s_end = s_start = as << fp;
-		eu_end = eu_start = aeu << fp;
-		ev_end = ev_start = aev << fp;
+		u_end = u_start = au;
+		v_end = v_start = av;
+		s_end = s_start = as;
+		eu_end = eu_start = aeu;
+		ev_end = ev_start = aev;
 		int y_start = ay;
 		int y_end = by;
 		for(int i = 0; i < 2; i++) {
@@ -2170,24 +2170,24 @@ public class Rasterizer {
 			if(cy == by) return;
 			tempI = by - ay;
 			x_start = (ax << fp) + dx_start * tempI;
-			u_start = (au << fp) + du_start * tempI;
-			v_start = (av << fp) + dv_start * tempI;
-			s_start = (as << fp) + ds_start * tempI;
-			eu_start = (aeu << fp) + deu_start * tempI;
-			ev_start = (aev << fp) + dev_start * tempI;
+			u_start = au + du_start * tempI;
+			v_start = av + dv_start * tempI;
+			s_start = as + ds_start * tempI;
+			eu_start = aeu + deu_start * tempI;
+			ev_start = aev + dev_start * tempI;
 			x_end = bx << fp;
-			u_end = bu << fp;
-			v_end = bv << fp;
-			s_end = bs << fp;
-			eu_end = beu << fp;
-			ev_end = bev << fp;
+			u_end = bu;
+			v_end = bv;
+			s_end = bs;
+			eu_end = beu;
+			ev_end = bev;
 			tempI = cy - by;
 			dx_end = ((cx - bx) << fp) / tempI;
-			du_end = ((cu - bu) << fp) / tempI;
-			dv_end = ((cv - bv) << fp) / tempI;
-			ds_end = ((cs - bs) << fp) / tempI;
-			deu_end = ((ceu - beu) << fp) / tempI;
-			dev_end = ((cev - bev) << fp) / tempI;
+			du_end = (cu - bu) / tempI;
+			dv_end = (cv - bv) / tempI;
+			ds_end = (cs - bs) / tempI;
+			deu_end = (ceu - beu) / tempI;
+			dev_end = (cev - bev) / tempI;
 			y_start = by;
 			y_end = cy;
 		}
@@ -2513,6 +2513,7 @@ public class Rasterizer {
 		}
 		if(cy == ay) return;
 		if(cy <= clipY1 || ay >= clipY2) return;
+		shade >>= fp;
 		int colorRGB = 0xff000000;
 		colorRGB |= (((polyColor & 0xff0000) * (shade + 1)) >> 5) & 0xff0000;
 		colorRGB |= (((polyColor & 0x00ff00) * (shade + 1)) >> 5) & 0x00ff00;
@@ -2917,7 +2918,7 @@ public class Rasterizer {
 		final int dx_start = ((cx - ax) << fp) / tempI;
 
 
-		final int ds_start = ((cs - as) << fp) / tempI;
+		final int ds_start = (cs - as) / tempI;
 
 
 		int dx_end = 0;
@@ -2929,7 +2930,7 @@ public class Rasterizer {
 			dx_end = ((bx - ax) << fp) / tempI;
 
 
-			ds_end = ((bs - as) << fp) / tempI;
+			ds_end = (bs - as) / tempI;
 
 
 		}
@@ -2939,13 +2940,13 @@ public class Rasterizer {
 		x_start = (ax << fp) + dx_start * tempI;
 
 
-		int s_start = (as << fp) + ds_start * tempI;
+		int s_start = as + ds_start * tempI;
 
 
 		x_end = bx << fp;
 
 
-		int s_end = bs << fp;
+		int s_end = bs;
 
 
 		tempI = (x_start - x_end) >> fp;
@@ -2960,7 +2961,7 @@ public class Rasterizer {
 		x_end = x_start = ax << fp;
 
 
-		s_end = s_start = as << fp;
+		s_end = s_start = as;
 
 
 		int y_start = ay;
@@ -3069,20 +3070,20 @@ public class Rasterizer {
 			x_start = (ax << fp) + dx_start * tempI;
 
 
-			s_start = (as << fp) + ds_start * tempI;
+			s_start = as + ds_start * tempI;
 
 
 			x_end = bx << fp;
 
 
-			s_end = bs << fp;
+			s_end = bs;
 
 
 			tempI = cy - by;
 			dx_end = ((cx - bx) << fp) / tempI;
 
 
-			ds_end = ((cs - bs) << fp) / tempI;
+			ds_end = (cs - bs) / tempI;
 
 
 			y_start = by;
@@ -3361,6 +3362,7 @@ public class Rasterizer {
 		}
 		if(cy == ay) return;
 		if(cy <= clipY1 || ay >= clipY2) return;
+		shade >>= fp;
 		int colorRGB = 0xff000000;
 		colorRGB |= (((polyColor & 0xff0000) * (shade + 1)) >> 5) & 0xff0000;
 		colorRGB |= (((polyColor & 0x00ff00) * (shade + 1)) >> 5) & 0x00ff00;
@@ -3370,8 +3372,8 @@ public class Rasterizer {
 
 
 
-		final int deu_start = ((ceu - aeu) << fp) / tempI;
-		final int dev_start = ((cev - aev) << fp) / tempI;
+		final int deu_start = (ceu - aeu) / tempI;
+		final int dev_start = (cev - aev) / tempI;
 		int dx_end = 0;
 
 
@@ -3383,8 +3385,8 @@ public class Rasterizer {
 
 
 
-			deu_end = ((beu - aeu) << fp) / tempI;
-			dev_end = ((bev - aev) << fp) / tempI;
+			deu_end = (beu - aeu) / tempI;
+			dev_end = (bev - aev) / tempI;
 		}
 		int x_start, x_end;
 		//Calculate scanline derivatives
@@ -3393,14 +3395,14 @@ public class Rasterizer {
 
 
 
-		int eu_start = (aeu << fp) + deu_start * tempI;
-		int ev_start = (aev << fp) + dev_start * tempI;
+		int eu_start = aeu + deu_start * tempI;
+		int ev_start = aev + dev_start * tempI;
 		x_end = bx << fp;
 
 
 
-		int eu_end = beu << fp;
-		int ev_end = bev << fp;
+		int eu_end = beu;
+		int ev_end = bev;
 		tempI = (x_start - x_end) >> fp;
 		//Symmetric ceil
 		if(tempI < 0) tempI--;
@@ -3414,8 +3416,8 @@ public class Rasterizer {
 
 
 
-		eu_end = eu_start = aeu << fp;
-		ev_end = ev_start = aev << fp;
+		eu_end = eu_start = aeu;
+		ev_end = ev_start = aev;
 		int y_start = ay;
 		int y_end = by;
 		for(int i = 0; i < 2; i++) {
@@ -3529,21 +3531,21 @@ public class Rasterizer {
 
 
 
-			eu_start = (aeu << fp) + deu_start * tempI;
-			ev_start = (aev << fp) + dev_start * tempI;
+			eu_start = aeu + deu_start * tempI;
+			ev_start = aev + dev_start * tempI;
 			x_end = bx << fp;
 
 
 
-			eu_end = beu << fp;
-			ev_end = bev << fp;
+			eu_end = beu;
+			ev_end = bev;
 			tempI = cy - by;
 			dx_end = ((cx - bx) << fp) / tempI;
 
 
 
-			deu_end = ((ceu - beu) << fp) / tempI;
-			dev_end = ((cev - bev) << fp) / tempI;
+			deu_end = (ceu - beu) / tempI;
+			dev_end = (cev - bev) / tempI;
 			y_start = by;
 			y_end = cy;
 		}
@@ -3852,9 +3854,9 @@ public class Rasterizer {
 		final int dx_start = ((cx - ax) << fp) / tempI;
 
 
-		final int ds_start = ((cs - as) << fp) / tempI;
-		final int deu_start = ((ceu - aeu) << fp) / tempI;
-		final int dev_start = ((cev - aev) << fp) / tempI;
+		final int ds_start = (cs - as) / tempI;
+		final int deu_start = (ceu - aeu) / tempI;
+		final int dev_start = (cev - aev) / tempI;
 		int dx_end = 0;
 
 		int ds_end = 0;
@@ -3865,9 +3867,9 @@ public class Rasterizer {
 			dx_end = ((bx - ax) << fp) / tempI;
 
 
-			ds_end = ((bs - as) << fp) / tempI;
-			deu_end = ((beu - aeu) << fp) / tempI;
-			dev_end = ((bev - aev) << fp) / tempI;
+			ds_end = (bs - as) / tempI;
+			deu_end = (beu - aeu) / tempI;
+			dev_end = (bev - aev) / tempI;
 		}
 		int x_start, x_end;
 		//Calculate scanline derivatives
@@ -3875,15 +3877,15 @@ public class Rasterizer {
 		x_start = (ax << fp) + dx_start * tempI;
 
 
-		int s_start = (as << fp) + ds_start * tempI;
-		int eu_start = (aeu << fp) + deu_start * tempI;
-		int ev_start = (aev << fp) + dev_start * tempI;
+		int s_start = as + ds_start * tempI;
+		int eu_start = aeu + deu_start * tempI;
+		int ev_start = aev + dev_start * tempI;
 		x_end = bx << fp;
 
 
-		int s_end = bs << fp;
-		int eu_end = beu << fp;
-		int ev_end = bev << fp;
+		int s_end = bs;
+		int eu_end = beu;
+		int ev_end = bev;
 		tempI = (x_start - x_end) >> fp;
 		//Symmetric ceil
 		if(tempI < 0) tempI--;
@@ -3896,9 +3898,9 @@ public class Rasterizer {
 		x_end = x_start = ax << fp;
 
 
-		s_end = s_start = as << fp;
-		eu_end = eu_start = aeu << fp;
-		ev_end = ev_start = aev << fp;
+		s_end = s_start = as;
+		eu_end = eu_start = aeu;
+		ev_end = ev_start = aev;
 		int y_start = ay;
 		int y_end = by;
 		for(int i = 0; i < 2; i++) {
@@ -4015,22 +4017,22 @@ public class Rasterizer {
 			x_start = (ax << fp) + dx_start * tempI;
 
 
-			s_start = (as << fp) + ds_start * tempI;
-			eu_start = (aeu << fp) + deu_start * tempI;
-			ev_start = (aev << fp) + dev_start * tempI;
+			s_start = as + ds_start * tempI;
+			eu_start = aeu + deu_start * tempI;
+			ev_start = aev + dev_start * tempI;
 			x_end = bx << fp;
 
 
-			s_end = bs << fp;
-			eu_end = beu << fp;
-			ev_end = bev << fp;
+			s_end = bs;
+			eu_end = beu;
+			ev_end = bev;
 			tempI = cy - by;
 			dx_end = ((cx - bx) << fp) / tempI;
 
 
-			ds_end = ((cs - bs) << fp) / tempI;
-			deu_end = ((ceu - beu) << fp) / tempI;
-			dev_end = ((cev - bev) << fp) / tempI;
+			ds_end = (cs - bs) / tempI;
+			deu_end = (ceu - beu) / tempI;
+			dev_end = (cev - bev) / tempI;
 			y_start = by;
 			y_end = cy;
 		}
