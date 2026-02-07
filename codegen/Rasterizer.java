@@ -15,13 +15,13 @@ public class Rasterizer {
 	
 	#define BLEND_ADD(col1, col2, res) \
 		{ \
-			int tmp = ((((2 * (col1 & col2) + ((col1 ^ col2) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F; \
+			int tmp = ((((((col1 & col2) << 1) + ((col1 ^ col2) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F; \
 			res = 0xff000000 | (col1 + col2 - tmp) | tmp; \
 		}
 	
 	#define BLEND_SUB(col1, col2, res) \
 		{ \
-			int tmp = ((((((col2 ^ ~col1) & 0xFEFEFE) + 2 * (col2 & ~col1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F; \
+			int tmp = ((((((col2 ^ ~col1) & 0xFEFEFE) + ((col2 & ~col1) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F; \
 			res = 0xff000000 | ((col1 | tmp) - (tmp | col2)); \
 		}
 

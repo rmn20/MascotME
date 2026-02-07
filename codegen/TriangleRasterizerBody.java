@@ -84,6 +84,10 @@ final static void  FUNC_NAME
 	#ifdef TEX
 		#ifndef LIGHT
 			int shadeOffset = shade << 8;
+			#ifndef ENVMAP
+				boolean fastPath = !useColorKey;
+				fastPath &= (shade == 31 && tex.palette.length > 256) || (shade == 0 && tex.palette.length == 256);
+			#endif
 		#endif
 	#else
 		#ifdef LIGHT
@@ -227,35 +231,53 @@ final static void  FUNC_NAME
 					
 				switch (blendMode) {
 					default:
-						FN_NAME_COMBINED(FUNC_NAME, _replace) (
-							frameBuffer, fbWidth,
-							clipX1, clipX2,
-							y_start, y_end_draw,
-							#ifdef TEX
+						#if defined(TEX) && !defined(LIGHT) && !defined(ENVMAP)
+						if (fastPath) {
+							FN_NAME_COMBINED(FUNC_NAME, _replaceFast) (
+								frameBuffer, fbWidth,
+								clipX1, clipX2,
+								y_start, y_end_draw,
+								
 								u, du_left, du, v, dv_left, dv,
-								tex, useColorKey,
-								#ifndef LIGHT
-									shadeOffset,
-								#endif
-							#else
-								#ifdef LIGHT
-									colorRB, colorG,
-								#else
-									colorRGB,
-								#endif
-							#endif
-							
-							#ifdef LIGHT
-								s, ds_left, ds,
-							#endif
-							
-							#ifdef ENVMAP
-								eu, deu_left, deu, ev, dev_left, dev,
-								envMap,
-							#endif
+								tex,
+								
 								x1, dx_left, x2, dx_right
-						);
-						break;
+							);
+							break;
+						} else {
+						#endif
+							FN_NAME_COMBINED(FUNC_NAME, _replace) (
+								frameBuffer, fbWidth,
+								clipX1, clipX2,
+								y_start, y_end_draw,
+								#ifdef TEX
+									u, du_left, du, v, dv_left, dv,
+									tex, useColorKey,
+									#ifndef LIGHT
+										shadeOffset,
+									#endif
+								#else
+									#ifdef LIGHT
+										colorRB, colorG,
+									#else
+										colorRGB,
+									#endif
+								#endif
+								
+								#ifdef LIGHT
+									s, ds_left, ds,
+								#endif
+								
+								#ifdef ENVMAP
+									eu, deu_left, deu, ev, dev_left, dev,
+									envMap,
+								#endif
+								x1, dx_left, x2, dx_right
+							);
+							break;
+						#if defined(TEX) && !defined(LIGHT) && !defined(ENVMAP)
+						}
+						#endif
 					case 1:
 						FN_NAME_COMBINED(FUNC_NAME, _half) (
 							frameBuffer, fbWidth,
@@ -283,7 +305,7 @@ final static void  FUNC_NAME
 								eu, deu_left, deu, ev, dev_left, dev,
 								envMap,
 							#endif
-								x1, dx_left, x2, dx_right
+							x1, dx_left, x2, dx_right
 						);
 						break;
 					case 2:
@@ -313,7 +335,7 @@ final static void  FUNC_NAME
 								eu, deu_left, deu, ev, dev_left, dev,
 								envMap,
 							#endif
-								x1, dx_left, x2, dx_right
+							x1, dx_left, x2, dx_right
 						);
 						break;
 					case 3:
@@ -343,7 +365,7 @@ final static void  FUNC_NAME
 								eu, deu_left, deu, ev, dev_left, dev,
 								envMap,
 							#endif
-								x1, dx_left, x2, dx_right
+							x1, dx_left, x2, dx_right
 						);
 						break;
 				}
@@ -379,6 +401,15 @@ final static void  FUNC_NAME
 		y_end = cy;
 	}
 }
+
+#if defined(TEX) && !defined(LIGHT) && !defined(ENVMAP)
+	#undef BLEND_MODE
+	#define BLEND_MODE 0
+	#define FAST_PATH
+	private final static void FN_NAME_COMBINED(FUNC_NAME, _replaceFast)
+	#include "ScanLineBody.java"
+	#undef FAST_PATH
+#endif
 
 #undef BLEND_MODE
 #define BLEND_MODE 0

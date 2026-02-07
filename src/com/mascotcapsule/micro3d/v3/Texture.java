@@ -22,7 +22,7 @@ public class Texture {
 	int paddedWidth, paddedHeight;
 	
 	//ARGB palette (256 colors or 256*32 when shade lookup table is used)
-	int[] palette;
+	int[] origPalette, palette;
 	boolean firstColorIsBlack;
 	
 	//True if this is a model texture, false if for environment mapping
@@ -149,6 +149,7 @@ public class Texture {
 		}
 		
 		//Implementation specific details
+		origPalette = palette;
 		firstColorIsBlack = palette[0] == 0xff000000;
 		
 		widthBit = countBits(width);
@@ -191,6 +192,7 @@ public class Texture {
 			}
 			
 			bitmapData = null;
+			origPalette = null;
 			palette = null;
 		}
 	}

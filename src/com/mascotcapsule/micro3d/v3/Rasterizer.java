@@ -20,14 +20,14 @@ public class Rasterizer {
 				return src;
 			case 2: {
 				{
-					int tmp = ((((2 * (dst & src) + ((dst ^ src) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((dst & src) << 1) + ((dst ^ src) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					src = 0xff000000 | (dst + src - tmp) | tmp;
 				}
 				return src;
 			}
 			case 3: {
 				{
-					int tmp = ((((((src ^ ~dst) & 0xFEFEFE) + 2 * (src & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((src ^ ~dst) & 0xFEFEFE) + ((src & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 					src = 0xff000000 | ((dst | tmp) - (tmp | src));
 				}
 				return src;
@@ -134,6 +134,8 @@ public class Rasterizer {
 		if(cy == ay) return;
 		if(cy <= clipY1 || ay >= clipY2) return;
 		int shadeOffset = shade << 8;
+		boolean fastPath = !useColorKey;
+		fastPath &= (shade == 31 && tex.palette.length > 256) || (shade == 0 && tex.palette.length == 256);
 		int tempI = cy - ay;
 		final int dx_start = ((cx - ax) << fp) / tempI;
 		final int du_start = ((cu - au) << fp) / tempI;
@@ -249,15 +251,26 @@ public class Rasterizer {
 				final int y_end_draw = y_end < clipY2 ? y_end : clipY2;
 				switch(blendMode) {
 					default:
-						fillTriangleAffineT_replace(
-								frameBuffer, fbWidth,
-								clipX1, clipX2,
-								y_start, y_end_draw,
-								u, du_left, du, v, dv_left, dv,
-								tex, useColorKey,
-								shadeOffset,
-								x1, dx_left, x2, dx_right);
-						break;
+						if(fastPath) {
+							fillTriangleAffineT_replaceFast(
+									frameBuffer, fbWidth,
+									clipX1, clipX2,
+									y_start, y_end_draw,
+									u, du_left, du, v, dv_left, dv,
+									tex,
+									x1, dx_left, x2, dx_right);
+							break;
+						} else {
+							fillTriangleAffineT_replace(
+									frameBuffer, fbWidth,
+									clipX1, clipX2,
+									y_start, y_end_draw,
+									u, du_left, du, v, dv_left, dv,
+									tex, useColorKey,
+									shadeOffset,
+									x1, dx_left, x2, dx_right);
+							break;
+						}
 					case 1:
 						fillTriangleAffineT_half(
 								frameBuffer, fbWidth,
@@ -318,27 +331,27 @@ public class Rasterizer {
 		}
 	}
 
-	private final static void fillTriangleAffineT_replace(
+	private final static void fillTriangleAffineT_replaceFast(
 			int[] frameBuffer, int fbWidth,
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
-			int shadeOffset,
+			Texture tex,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
-		int colorKeyIdx = useColorKey ? 0 : 256;
+		final int[] texPal = tex.origPalette;
 		//Corrected rounding to avoid texture seams
 		if(du_start != 0) u_start += du_start > 0 ? 1 : -1;
 		if(dv_start != 0) v_start += dv_start > 0 ? 1 : -1;
 
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -358,9 +371,84 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
+			//Slight speedup for most used functions
+			while(x2 - x1 >= 6) {
+				frameBuffer[x1] = texPal[texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask] & 0xFF];
+				u += du;
+				v += dv;
+				frameBuffer[x1 + 1] = texPal[texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask] & 0xFF];
+				u += du;
+				v += dv;
+				frameBuffer[x1 + 2] = texPal[texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask] & 0xFF];
+				u += du;
+				v += dv;
+				frameBuffer[x1 + 3] = texPal[texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask] & 0xFF];
+				u += du;
+				v += dv;
+				frameBuffer[x1 + 4] = texPal[texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask] & 0xFF];
+				u += du;
+				v += dv;
+				frameBuffer[x1 + 5] = texPal[texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask] & 0xFF];
+				u += du;
+				v += dv;
+				x1 += 6;
+			}
+			for(; x1 < x2;
+					u += du, v += dv, x1++) {
+				int color = texPal[texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask] & 0xFF];
+
+				frameBuffer[x1] = color;
+			}
+		}
+	}
+
+	private final static void fillTriangleAffineT_replace(
+			int[] frameBuffer, int fbWidth,
+			int clipX1, int clipX2,
+			int y_start, int y_end,
+			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
+			Texture tex,
+			boolean useColorKey,
+			int shadeOffset,
+			int x_start, int dx_start, int x_end, int dx_end) {
+		final byte[] texBitmap = tex.bitmapData;
+		final int texWBit = tex.widthBit;
+		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
+		int colorKeyIdx = useColorKey ? 0 : 256;
+		//Corrected rounding to avoid texture seams
+		if(du_start != 0) u_start += du_start > 0 ? 1 : -1;
+		if(dv_start != 0) v_start += dv_start > 0 ? 1 : -1;
+
+
+
+		y_start *= fbWidth;
+		y_end *= fbWidth;
+		for(; y_start < y_end;
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, x_start += dx_start, x_end += dx_end) {
+			int x1 = x_start >> fp;
+			int x2 = x_end >> fp;
+			//Subpixel precision, ceil rounding
+			int tempI = FP - (x_start & (FP - 1));
+			int u = u_start + ((du * tempI) >> fp);
+			int v = v_start + ((dv * tempI) >> fp);
+
+
+
+			if(x1 < clipX1) {
+				tempI = x1 - clipX1;
+				u -= du * tempI;
+				v -= dv * tempI;
+
+
+
+				x1 = clipX1;
+			}
+			if(x2 > clipX2) x2 = clipX2;
+			x1 += y_start;
+			x2 += y_start;
 			//Slight speedup for most used functions
 			while(x2 - x1 >= 6) {
 				int texIdx = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -418,13 +506,14 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int shadeOffset,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		//Corrected rounding to avoid texture seams
 		if(du_start != 0) u_start += du_start > 0 ? 1 : -1;
@@ -432,8 +521,10 @@ public class Rasterizer {
 
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -453,9 +544,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			//Slight speedup for most used functions
 			while(x2 - x1 >= 6) {
 				int texIdx = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -526,13 +616,14 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int shadeOffset,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		if(tex.firstColorIsBlack) colorKeyIdx = 0;
 		//Corrected rounding to avoid texture seams
@@ -541,8 +632,10 @@ public class Rasterizer {
 
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -562,9 +655,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			//Slight speedup for most used functions
 			while(x2 - x1 >= 6) {
 				int texIdx = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -589,7 +681,7 @@ public class Rasterizer {
 					texIdx = texPal[shadeOffset | (texIdx & 0xFF)];
 					int dst = frameBuffer[x1];
 					{
-						int tmp = ((((2 * (dst & texIdx) + ((dst ^ texIdx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((dst & texIdx) << 1) + ((dst ^ texIdx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1] = 0xff000000 | (dst + texIdx - tmp) | tmp;
 					}
 				}
@@ -597,7 +689,7 @@ public class Rasterizer {
 					texIdx2 = texPal[shadeOffset | (texIdx2 & 0xFF)];
 					int dst = frameBuffer[x1 + 1];
 					{
-						int tmp = ((((2 * (dst & texIdx2) + ((dst ^ texIdx2) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((dst & texIdx2) << 1) + ((dst ^ texIdx2) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1 + 1] = 0xff000000 | (dst + texIdx2 - tmp) | tmp;
 					}
 				}
@@ -605,7 +697,7 @@ public class Rasterizer {
 					texIdx3 = texPal[shadeOffset | (texIdx3 & 0xFF)];
 					int dst = frameBuffer[x1 + 2];
 					{
-						int tmp = ((((2 * (dst & texIdx3) + ((dst ^ texIdx3) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((dst & texIdx3) << 1) + ((dst ^ texIdx3) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1 + 2] = 0xff000000 | (dst + texIdx3 - tmp) | tmp;
 					}
 				}
@@ -613,7 +705,7 @@ public class Rasterizer {
 					texIdx4 = texPal[shadeOffset | (texIdx4 & 0xFF)];
 					int dst = frameBuffer[x1 + 3];
 					{
-						int tmp = ((((2 * (dst & texIdx4) + ((dst ^ texIdx4) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((dst & texIdx4) << 1) + ((dst ^ texIdx4) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1 + 3] = 0xff000000 | (dst + texIdx4 - tmp) | tmp;
 					}
 				}
@@ -621,7 +713,7 @@ public class Rasterizer {
 					texIdx5 = texPal[shadeOffset | (texIdx5 & 0xFF)];
 					int dst = frameBuffer[x1 + 4];
 					{
-						int tmp = ((((2 * (dst & texIdx5) + ((dst ^ texIdx5) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((dst & texIdx5) << 1) + ((dst ^ texIdx5) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1 + 4] = 0xff000000 | (dst + texIdx5 - tmp) | tmp;
 					}
 				}
@@ -629,7 +721,7 @@ public class Rasterizer {
 					texIdx6 = texPal[shadeOffset | (texIdx6 & 0xFF)];
 					int dst = frameBuffer[x1 + 5];
 					{
-						int tmp = ((((2 * (dst & texIdx6) + ((dst ^ texIdx6) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((dst & texIdx6) << 1) + ((dst ^ texIdx6) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1 + 5] = 0xff000000 | (dst + texIdx6 - tmp) | tmp;
 					}
 				}
@@ -643,7 +735,7 @@ public class Rasterizer {
 
 					int dst = frameBuffer[x1];
 					{
-						int tmp = ((((2 * (dst & color) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((dst & color) << 1) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1] = 0xff000000 | (dst + color - tmp) | tmp;
 					}
 				}
@@ -656,13 +748,14 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int shadeOffset,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		if(tex.firstColorIsBlack) colorKeyIdx = 0;
 		//Corrected rounding to avoid texture seams
@@ -671,8 +764,10 @@ public class Rasterizer {
 
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -692,9 +787,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			//Slight speedup for most used functions
 			while(x2 - x1 >= 6) {
 				int texIdx = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -719,7 +813,7 @@ public class Rasterizer {
 					texIdx = texPal[shadeOffset | (texIdx & 0xFF)];
 					int dst = frameBuffer[x1];
 					{
-						int tmp = ((((((texIdx ^ ~dst) & 0xFEFEFE) + 2 * (texIdx & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((texIdx ^ ~dst) & 0xFEFEFE) + ((texIdx & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1] = 0xff000000 | ((dst | tmp) - (tmp | texIdx));
 					}
 				}
@@ -727,7 +821,7 @@ public class Rasterizer {
 					texIdx2 = texPal[shadeOffset | (texIdx2 & 0xFF)];
 					int dst = frameBuffer[x1 + 1];
 					{
-						int tmp = ((((((texIdx2 ^ ~dst) & 0xFEFEFE) + 2 * (texIdx2 & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((texIdx2 ^ ~dst) & 0xFEFEFE) + ((texIdx2 & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1 + 1] = 0xff000000 | ((dst | tmp) - (tmp | texIdx2));
 					}
 				}
@@ -735,7 +829,7 @@ public class Rasterizer {
 					texIdx3 = texPal[shadeOffset | (texIdx3 & 0xFF)];
 					int dst = frameBuffer[x1 + 2];
 					{
-						int tmp = ((((((texIdx3 ^ ~dst) & 0xFEFEFE) + 2 * (texIdx3 & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((texIdx3 ^ ~dst) & 0xFEFEFE) + ((texIdx3 & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1 + 2] = 0xff000000 | ((dst | tmp) - (tmp | texIdx3));
 					}
 				}
@@ -743,7 +837,7 @@ public class Rasterizer {
 					texIdx4 = texPal[shadeOffset | (texIdx4 & 0xFF)];
 					int dst = frameBuffer[x1 + 3];
 					{
-						int tmp = ((((((texIdx4 ^ ~dst) & 0xFEFEFE) + 2 * (texIdx4 & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((texIdx4 ^ ~dst) & 0xFEFEFE) + ((texIdx4 & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1 + 3] = 0xff000000 | ((dst | tmp) - (tmp | texIdx4));
 					}
 				}
@@ -751,7 +845,7 @@ public class Rasterizer {
 					texIdx5 = texPal[shadeOffset | (texIdx5 & 0xFF)];
 					int dst = frameBuffer[x1 + 4];
 					{
-						int tmp = ((((((texIdx5 ^ ~dst) & 0xFEFEFE) + 2 * (texIdx5 & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((texIdx5 ^ ~dst) & 0xFEFEFE) + ((texIdx5 & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1 + 4] = 0xff000000 | ((dst | tmp) - (tmp | texIdx5));
 					}
 				}
@@ -759,7 +853,7 @@ public class Rasterizer {
 					texIdx6 = texPal[shadeOffset | (texIdx6 & 0xFF)];
 					int dst = frameBuffer[x1 + 5];
 					{
-						int tmp = ((((((texIdx6 ^ ~dst) & 0xFEFEFE) + 2 * (texIdx6 & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((texIdx6 ^ ~dst) & 0xFEFEFE) + ((texIdx6 & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1 + 5] = 0xff000000 | ((dst | tmp) - (tmp | texIdx6));
 					}
 				}
@@ -773,7 +867,7 @@ public class Rasterizer {
 
 					int dst = frameBuffer[x1];
 					{
-						int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + 2 * (color & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + ((color & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1] = 0xff000000 | ((dst | tmp) - (tmp | color));
 					}
 				}
@@ -1037,13 +1131,14 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int s_start, int ds_start, int ds,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		//Corrected rounding to avoid texture seams
 		if(du_start != 0) u_start += du_start > 0 ? 1 : -1;
@@ -1051,8 +1146,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -1072,9 +1169,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, s += ds, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -1092,13 +1188,14 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int s_start, int ds_start, int ds,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		//Corrected rounding to avoid texture seams
 		if(du_start != 0) u_start += du_start > 0 ? 1 : -1;
@@ -1106,8 +1203,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -1127,9 +1226,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, s += ds, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -1148,13 +1246,14 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int s_start, int ds_start, int ds,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		if(tex.firstColorIsBlack) colorKeyIdx = 0;
 		//Corrected rounding to avoid texture seams
@@ -1163,8 +1262,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -1184,9 +1285,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, s += ds, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -1195,7 +1295,7 @@ public class Rasterizer {
 
 					int dst = frameBuffer[x1];
 					{
-						int tmp = ((((2 * (dst & color) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((dst & color) << 1) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1] = 0xff000000 | (dst + color - tmp) | tmp;
 					}
 				}
@@ -1208,13 +1308,14 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int s_start, int ds_start, int ds,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		if(tex.firstColorIsBlack) colorKeyIdx = 0;
 		//Corrected rounding to avoid texture seams
@@ -1223,8 +1324,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -1244,9 +1347,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, s += ds, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -1255,7 +1357,7 @@ public class Rasterizer {
 
 					int dst = frameBuffer[x1];
 					{
-						int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + 2 * (color & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + ((color & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1] = 0xff000000 | ((dst | tmp) - (tmp | color));
 					}
 				}
@@ -1542,15 +1644,16 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int shadeOffset,
 			int eu_start, int deu_start, int deu, int ev_start, int dev_start, int dev,
 			Texture envMap,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		final int[] envTexBitmap = envMap.envmapData;
 		final int envTexWBit = envMap.widthBit;
@@ -1561,8 +1664,10 @@ public class Rasterizer {
 
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -1582,9 +1687,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, eu += deu, ev += dev, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -1592,7 +1696,7 @@ public class Rasterizer {
 					color = texPal[shadeOffset | (color & 0xFF)];
 					int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 					if(envPx != 0) {
-						int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						color = 0xff000000 | (color + envPx - tmp) | tmp;
 					}
 					frameBuffer[x1] = color;
@@ -1606,15 +1710,16 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int shadeOffset,
 			int eu_start, int deu_start, int deu, int ev_start, int dev_start, int dev,
 			Texture envMap,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		final int[] envTexBitmap = envMap.envmapData;
 		final int envTexWBit = envMap.widthBit;
@@ -1625,8 +1730,10 @@ public class Rasterizer {
 
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -1646,9 +1753,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, eu += deu, ev += dev, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -1656,7 +1762,7 @@ public class Rasterizer {
 					color = texPal[shadeOffset | (color & 0xFF)];
 					int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 					if(envPx != 0) {
-						int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						color = 0xff000000 | (color + envPx - tmp) | tmp;
 					}
 					int dst = frameBuffer[x1];
@@ -1671,15 +1777,16 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int shadeOffset,
 			int eu_start, int deu_start, int deu, int ev_start, int dev_start, int dev,
 			Texture envMap,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		if(tex.firstColorIsBlack) colorKeyIdx = 0;
 		final int[] envTexBitmap = envMap.envmapData;
@@ -1691,8 +1798,10 @@ public class Rasterizer {
 
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -1712,9 +1821,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, eu += deu, ev += dev, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -1722,12 +1830,12 @@ public class Rasterizer {
 					color = texPal[shadeOffset | (color & 0xFF)];
 					int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 					if(envPx != 0) {
-						int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						color = 0xff000000 | (color + envPx - tmp) | tmp;
 					}
 					int dst = frameBuffer[x1];
 					{
-						int tmp = ((((2 * (dst & color) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((dst & color) << 1) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1] = 0xff000000 | (dst + color - tmp) | tmp;
 					}
 				}
@@ -1740,15 +1848,16 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int shadeOffset,
 			int eu_start, int deu_start, int deu, int ev_start, int dev_start, int dev,
 			Texture envMap,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		if(tex.firstColorIsBlack) colorKeyIdx = 0;
 		final int[] envTexBitmap = envMap.envmapData;
@@ -1760,8 +1869,10 @@ public class Rasterizer {
 
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -1781,9 +1892,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, eu += deu, ev += dev, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -1791,12 +1901,12 @@ public class Rasterizer {
 					color = texPal[shadeOffset | (color & 0xFF)];
 					int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 					if(envPx != 0) {
-						int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						color = 0xff000000 | (color + envPx - tmp) | tmp;
 					}
 					int dst = frameBuffer[x1];
 					{
-						int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + 2 * (color & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + ((color & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1] = 0xff000000 | ((dst | tmp) - (tmp | color));
 					}
 				}
@@ -2088,15 +2198,16 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int s_start, int ds_start, int ds,
 			int eu_start, int deu_start, int deu, int ev_start, int dev_start, int dev,
 			Texture envMap,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		final int[] envTexBitmap = envMap.envmapData;
 		final int envTexWBit = envMap.widthBit;
@@ -2107,8 +2218,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -2128,9 +2241,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, s += ds, eu += deu, ev += dev, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -2138,7 +2250,7 @@ public class Rasterizer {
 					color = texPal[((s >> shadeFpShift) & 0x1f00) | (color & 0xFF)];
 					int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 					if(envPx != 0) {
-						int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						color = 0xff000000 | (color + envPx - tmp) | tmp;
 					}
 					frameBuffer[x1] = color;
@@ -2152,15 +2264,16 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int s_start, int ds_start, int ds,
 			int eu_start, int deu_start, int deu, int ev_start, int dev_start, int dev,
 			Texture envMap,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		final int[] envTexBitmap = envMap.envmapData;
 		final int envTexWBit = envMap.widthBit;
@@ -2171,8 +2284,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -2192,9 +2307,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, s += ds, eu += deu, ev += dev, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -2202,7 +2316,7 @@ public class Rasterizer {
 					color = texPal[((s >> shadeFpShift) & 0x1f00) | (color & 0xFF)];
 					int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 					if(envPx != 0) {
-						int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						color = 0xff000000 | (color + envPx - tmp) | tmp;
 					}
 					int dst = frameBuffer[x1];
@@ -2217,15 +2331,16 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int s_start, int ds_start, int ds,
 			int eu_start, int deu_start, int deu, int ev_start, int dev_start, int dev,
 			Texture envMap,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		if(tex.firstColorIsBlack) colorKeyIdx = 0;
 		final int[] envTexBitmap = envMap.envmapData;
@@ -2237,8 +2352,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -2258,9 +2375,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, s += ds, eu += deu, ev += dev, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -2268,12 +2384,12 @@ public class Rasterizer {
 					color = texPal[((s >> shadeFpShift) & 0x1f00) | (color & 0xFF)];
 					int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 					if(envPx != 0) {
-						int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						color = 0xff000000 | (color + envPx - tmp) | tmp;
 					}
 					int dst = frameBuffer[x1];
 					{
-						int tmp = ((((2 * (dst & color) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((dst & color) << 1) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1] = 0xff000000 | (dst + color - tmp) | tmp;
 					}
 				}
@@ -2286,15 +2402,16 @@ public class Rasterizer {
 			int clipX1, int clipX2,
 			int y_start, int y_end,
 			int u_start, int du_start, int du, int v_start, int dv_start, int dv,
-			Texture tex, boolean useColorKey,
+			Texture tex,
+			boolean useColorKey,
 			int s_start, int ds_start, int ds,
 			int eu_start, int deu_start, int deu, int ev_start, int dev_start, int dev,
 			Texture envMap,
 			int x_start, int dx_start, int x_end, int dx_end) {
 		final byte[] texBitmap = tex.bitmapData;
-		final int[] texPal = tex.palette;
 		final int texWBit = tex.widthBit;
 		final int texLenMask = texBitmap.length - 1;
+		final int[] texPal = tex.palette;
 		int colorKeyIdx = useColorKey ? 0 : 256;
 		if(tex.firstColorIsBlack) colorKeyIdx = 0;
 		final int[] envTexBitmap = envMap.envmapData;
@@ -2306,8 +2423,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, u_start += du_start, v_start += dv_start, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, u_start += du_start, v_start += dv_start, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -2327,9 +2446,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					u += du, v += dv, s += ds, eu += deu, ev += dev, x1++) {
 				int color = texBitmap[(((v >> fp) << texWBit) | (u >> fp)) & texLenMask];
@@ -2337,12 +2455,12 @@ public class Rasterizer {
 					color = texPal[((s >> shadeFpShift) & 0x1f00) | (color & 0xFF)];
 					int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 					if(envPx != 0) {
-						int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 						color = 0xff000000 | (color + envPx - tmp) | tmp;
 					}
 					int dst = frameBuffer[x1];
 					{
-						int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + 2 * (color & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+						int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + ((color & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 						frameBuffer[x1] = 0xff000000 | ((dst | tmp) - (tmp | color));
 					}
 				}
@@ -2561,8 +2679,10 @@ public class Rasterizer {
 
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -2582,15 +2702,13 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					x1++) {
 				int color = colorRGB;
 
 				frameBuffer[x1] = color;
-
 			}
 		}
 	}
@@ -2607,8 +2725,10 @@ public class Rasterizer {
 
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -2628,16 +2748,14 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					x1++) {
 				int color = colorRGB;
 
 				int dst = frameBuffer[x1];
 				frameBuffer[x1] = 0xff000000 | ((dst & color) + (((dst ^ color) >> 1) & 0x7F7F7F));
-
 			}
 		}
 	}
@@ -2654,8 +2772,10 @@ public class Rasterizer {
 
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -2675,19 +2795,17 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					x1++) {
 				int color = colorRGB;
 
 				int dst = frameBuffer[x1];
 				{
-					int tmp = ((((2 * (dst & color) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((dst & color) << 1) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					frameBuffer[x1] = 0xff000000 | (dst + color - tmp) | tmp;
 				}
-
 			}
 		}
 	}
@@ -2704,8 +2822,10 @@ public class Rasterizer {
 
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -2725,19 +2845,17 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					x1++) {
 				int color = colorRGB;
 
 				int dst = frameBuffer[x1];
 				{
-					int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + 2 * (color & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + ((color & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 					frameBuffer[x1] = 0xff000000 | ((dst | tmp) - (tmp | color));
 				}
-
 			}
 		}
 	}
@@ -2987,8 +3105,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -3008,16 +3128,14 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					s += ds, x1++) {
 				int shadeLevel = s >> fp;
 				int color = 0xff000000 | ((((colorRB * shadeLevel) & rbMask) | ((colorG * shadeLevel) & gMask)) >> 5);
 
 				frameBuffer[x1] = color;
-
 			}
 		}
 	}
@@ -3037,8 +3155,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -3058,9 +3178,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					s += ds, x1++) {
 				int shadeLevel = s >> fp;
@@ -3068,7 +3187,6 @@ public class Rasterizer {
 
 				int dst = frameBuffer[x1];
 				frameBuffer[x1] = 0xff000000 | ((dst & color) + (((dst ^ color) >> 1) & 0x7F7F7F));
-
 			}
 		}
 	}
@@ -3088,8 +3206,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -3109,9 +3229,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					s += ds, x1++) {
 				int shadeLevel = s >> fp;
@@ -3119,10 +3238,9 @@ public class Rasterizer {
 
 				int dst = frameBuffer[x1];
 				{
-					int tmp = ((((2 * (dst & color) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((dst & color) << 1) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					frameBuffer[x1] = 0xff000000 | (dst + color - tmp) | tmp;
 				}
-
 			}
 		}
 	}
@@ -3142,8 +3260,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 
 
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, s_start += ds_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -3163,9 +3283,8 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					s += ds, x1++) {
 				int shadeLevel = s >> fp;
@@ -3173,10 +3292,9 @@ public class Rasterizer {
 
 				int dst = frameBuffer[x1];
 				{
-					int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + 2 * (color & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + ((color & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 					frameBuffer[x1] = 0xff000000 | ((dst | tmp) - (tmp | color));
 				}
-
 			}
 		}
 	}
@@ -3448,8 +3566,10 @@ public class Rasterizer {
 
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -3469,19 +3589,17 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					eu += deu, ev += dev, x1++) {
 				int color = colorRGB;
 				int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 				if(envPx != 0) {
-					int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					color = 0xff000000 | (color + envPx - tmp) | tmp;
 				}
 				frameBuffer[x1] = color;
-
 			}
 		}
 	}
@@ -3503,8 +3621,10 @@ public class Rasterizer {
 
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -3524,20 +3644,18 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					eu += deu, ev += dev, x1++) {
 				int color = colorRGB;
 				int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 				if(envPx != 0) {
-					int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					color = 0xff000000 | (color + envPx - tmp) | tmp;
 				}
 				int dst = frameBuffer[x1];
 				frameBuffer[x1] = 0xff000000 | ((dst & color) + (((dst ^ color) >> 1) & 0x7F7F7F));
-
 			}
 		}
 	}
@@ -3559,8 +3677,10 @@ public class Rasterizer {
 
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -3580,23 +3700,21 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					eu += deu, ev += dev, x1++) {
 				int color = colorRGB;
 				int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 				if(envPx != 0) {
-					int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					color = 0xff000000 | (color + envPx - tmp) | tmp;
 				}
 				int dst = frameBuffer[x1];
 				{
-					int tmp = ((((2 * (dst & color) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((dst & color) << 1) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					frameBuffer[x1] = 0xff000000 | (dst + color - tmp) | tmp;
 				}
-
 			}
 		}
 	}
@@ -3618,8 +3736,10 @@ public class Rasterizer {
 
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -3639,23 +3759,21 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					eu += deu, ev += dev, x1++) {
 				int color = colorRGB;
 				int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 				if(envPx != 0) {
-					int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					color = 0xff000000 | (color + envPx - tmp) | tmp;
 				}
 				int dst = frameBuffer[x1];
 				{
-					int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + 2 * (color & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + ((color & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 					frameBuffer[x1] = 0xff000000 | ((dst | tmp) - (tmp | color));
 				}
-
 			}
 		}
 	}
@@ -3938,8 +4056,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -3959,20 +4079,18 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					s += ds, eu += deu, ev += dev, x1++) {
 				int shadeLevel = s >> fp;
 				int color = 0xff000000 | ((((colorRB * shadeLevel) & rbMask) | ((colorG * shadeLevel) & gMask)) >> 5);
 				int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 				if(envPx != 0) {
-					int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					color = 0xff000000 | (color + envPx - tmp) | tmp;
 				}
 				frameBuffer[x1] = color;
-
 			}
 		}
 	}
@@ -3997,8 +4115,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -4018,21 +4138,19 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					s += ds, eu += deu, ev += dev, x1++) {
 				int shadeLevel = s >> fp;
 				int color = 0xff000000 | ((((colorRB * shadeLevel) & rbMask) | ((colorG * shadeLevel) & gMask)) >> 5);
 				int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 				if(envPx != 0) {
-					int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					color = 0xff000000 | (color + envPx - tmp) | tmp;
 				}
 				int dst = frameBuffer[x1];
 				frameBuffer[x1] = 0xff000000 | ((dst & color) + (((dst ^ color) >> 1) & 0x7F7F7F));
-
 			}
 		}
 	}
@@ -4057,8 +4175,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -4078,24 +4198,22 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					s += ds, eu += deu, ev += dev, x1++) {
 				int shadeLevel = s >> fp;
 				int color = 0xff000000 | ((((colorRB * shadeLevel) & rbMask) | ((colorG * shadeLevel) & gMask)) >> 5);
 				int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 				if(envPx != 0) {
-					int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					color = 0xff000000 | (color + envPx - tmp) | tmp;
 				}
 				int dst = frameBuffer[x1];
 				{
-					int tmp = ((((2 * (dst & color) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((dst & color) << 1) + ((dst ^ color) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					frameBuffer[x1] = 0xff000000 | (dst + color - tmp) | tmp;
 				}
-
 			}
 		}
 	}
@@ -4120,8 +4238,10 @@ public class Rasterizer {
 		if(ds_start != 0) s_start += ds_start > 0 ? 1 : -1;
 		if(deu_start != 0) eu_start += deu_start > 0 ? 1 : -1;
 		if(dev_start != 0) ev_start += dev_start > 0 ? 1 : -1;
+		y_start *= fbWidth;
+		y_end *= fbWidth;
 		for(; y_start < y_end;
-				y_start++, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
+				y_start += fbWidth, s_start += ds_start, eu_start += deu_start, ev_start += dev_start, x_start += dx_start, x_end += dx_end) {
 			int x1 = x_start >> fp;
 			int x2 = x_end >> fp;
 			//Subpixel precision, ceil rounding
@@ -4141,24 +4261,22 @@ public class Rasterizer {
 				x1 = clipX1;
 			}
 			if(x2 > clipX2) x2 = clipX2;
-			tempI = fbWidth * y_start;
-			x1 += tempI;
-			x2 += tempI;
+			x1 += y_start;
+			x2 += y_start;
 			for(; x1 < x2;
 					s += ds, eu += deu, ev += dev, x1++) {
 				int shadeLevel = s >> fp;
 				int color = 0xff000000 | ((((colorRB * shadeLevel) & rbMask) | ((colorG * shadeLevel) & gMask)) >> 5);
 				int envPx = envTexBitmap[(((ev >> fp) << envTexWBit) | (eu >> fp)) & envTexLenMask];
 				if(envPx != 0) {
-					int tmp = ((((2 * (color & envPx) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color & envPx) << 1) + ((color ^ envPx) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F;
 					color = 0xff000000 | (color + envPx - tmp) | tmp;
 				}
 				int dst = frameBuffer[x1];
 				{
-					int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + 2 * (color & ~dst)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
+					int tmp = ((((((color ^ ~dst) & 0xFEFEFE) + ((color & ~dst) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F;
 					frameBuffer[x1] = 0xff000000 | ((dst | tmp) - (tmp | color));
 				}
-
 			}
 		}
 	}
