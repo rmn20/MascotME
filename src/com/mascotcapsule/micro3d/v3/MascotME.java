@@ -34,9 +34,10 @@ public class MascotME {
 	// Compatibility hack, does not affect performance.
 	// Color used to clear framebuffer when Graphics3D is bind.
 	// Can be used to reduce graphical artifacts in games that draw semitransparent geometry over 2D graphics.
-	static int fbClearColor = 0;
+	
 	// Flag, specifying to clear framebuffer with last 2D color used on screen.
 	static final int CLEAR_WITH_LAST_USED_COLOR = -1;
+	static int fbClearColor = CLEAR_WITH_LAST_USED_COLOR;
 	
 	// Compatibility hack, does not affect performance.
 	// Uses dummy Canvas object to detect framebuffer size.
