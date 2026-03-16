@@ -15,14 +15,14 @@ public class Rasterizer {
 	
 	#define BLEND_ADD(col1, col2, res) \
 		{ \
-			int tmp = ((((((col1 & col2) << 1) + ((col1 ^ col2) & 0xFEFEFE)) & 0x1010100) >> 8) + 0x7F7F7F) ^ 0x7F7F7F; \
+			int tmp = (((col1 + col2 - ((col1 ^ col2) & 0x01010101)) >> 8) & 0x010101) * 0xff;\
 			res = 0xff000000 | (col1 + col2 - tmp) | tmp; \
 		}
 	
 	#define BLEND_SUB(col1, col2, res) \
 		{ \
-			int tmp = ((((((col2 ^ ~col1) & 0xFEFEFE) + ((col2 & ~col1) << 1)) >> 8) & 0x10101) + 0x7F7F7F) ^ 0x7F7F7F; \
-			res = 0xff000000 | ((col1 | tmp) - (tmp | col2)); \
+			int tmp = (((~col1 + col2 - ((~col1 ^ col2) & 0x01010101)) >> 8) & 0x010101) * 0xff;\
+			res = 0xff000000 | ((col1 | tmp) - (col2 | tmp)); \
 		}
 
 	final static int blendPixel(int src, int dst, int mode) {
