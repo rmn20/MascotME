@@ -137,10 +137,12 @@ public class Graphics3D {
 	//For sprites - [6] - tex u0, v0, u1, v1 (8 bit precision)
 	private int[] primData;
 	private int primDataUsed;
+	private int primDataReserved;
 	
 	//Offsets into primitive data array for each primitive
 	private int[] sortPrimIdx;
 	private int sortPrimCount;
+	private int sortPrimReserved;
 	
 	private Texture[] textures;
 	private int bindTextures;
@@ -250,30 +252,35 @@ public class Graphics3D {
 		}
 	}
 	
-	private final void preallocPrimBuffers(int primCount, int primDataSize) {
+	private final void reservePrimBuffers(int primCount, int primDataSize) {
 		primDataSize *= primCount;
 		
-		if (primData.length < primDataUsed + primDataSize) {
+		if (primData.length < primDataReserved + primDataSize) {
 			int newSize = Math.max(
-					primDataUsed + primDataSize, 
+					primDataReserved + primDataSize, 
 					primData.length * 3 / 2
 			);
 			
 			int[] newBuf = new int[newSize];
-			System.arraycopy(primData, 0, newBuf, 0, primDataUsed);
+			System.arraycopy(primData, 0, newBuf, 0, primDataReserved);
 			primData = newBuf;
 		}
 		
-		if (sortPrimIdx.length < sortPrimCount + primCount) {
+		if (sortPrimIdx.length < sortPrimReserved + primCount) {
 			int newSize = Math.max(
-					sortPrimCount + primCount, 
+					sortPrimReserved + primCount, 
 					sortPrimIdx.length * 3 / 2
 			);
 			
 			int[] newBuf = new int[newSize];
-			System.arraycopy(sortPrimIdx, 0, newBuf, 0, sortPrimCount);
+			System.arraycopy(sortPrimIdx, 0, newBuf, 0, sortPrimReserved);
 			sortPrimIdx = newBuf;
 		}
+	}
+	
+	private final void flushPrimBufferReserved() {
+		primDataReserved = primDataUsed;
+		sortPrimReserved = sortPrimCount;
 	}
 	
 	private final void preallocVtxBuffers(int vertsCount) {
@@ -474,6 +481,7 @@ public class Graphics3D {
 			flushPrimitives();
 			primDataUsed = 0;
 			sortPrimCount = 0;
+			flushPrimBufferReserved();
 			
 			//Draw fb on screen
 			if (!MascotME.no2DInbetween) {
@@ -1203,10 +1211,10 @@ public class Graphics3D {
 		boolean flatNormals = (figure.allMatsAnd & Figure.MAT_FLAT_NORMAL) != 0;
 		
 		int polyTexStride = calcPolygonStride(true, flatNormals, useLighting, useEnvMap);
-		preallocPrimBuffers(figure.numPolyT3 + figure.numPolyT4 * 2, polyTexStride);
+		reservePrimBuffers(figure.numPolyT3 + figure.numPolyT4 * 2, polyTexStride);
 		
 		int polyColStride = calcPolygonStride(false, flatNormals, useLighting, useEnvMap);
-		preallocPrimBuffers(figure.numPolyC3 + figure.numPolyC4 * 2, polyColStride);
+		reservePrimBuffers(figure.numPolyC3 + figure.numPolyC4 * 2, polyColStride);
 		
 		Texture[] texs = figure.textures;
 		int selectedTex = figure.textureIndex;
@@ -1253,6 +1261,8 @@ public class Graphics3D {
 				}
 			}
 		}
+		
+		flushPrimBufferReserved();
 	}
 	
 	private final void submitFigureTris(
@@ -1739,7 +1749,7 @@ public class Graphics3D {
 		if (flatNormals) material |= Figure.MAT_FLAT_NORMAL;
 		
 		int polyStride = calcPolygonStride(hasUVs, flatNormals, lighting, envMapping);
-		preallocPrimBuffers((isQuad ? 2 : 1) * numPrims, polyStride);
+		reservePrimBuffers((isQuad ? 2 : 1) * numPrims, polyStride);
 		
 		int vtxPerPrim = isQuad ? 4 : 3;
 		preallocVtxBuffers(numPrims * vtxPerPrim);
@@ -1840,6 +1850,8 @@ public class Graphics3D {
 				}
 			}
 		}
+		
+		flushPrimBufferReserved();
 	}
 	
 	private final void submitPoints(
@@ -1850,7 +1862,7 @@ public class Graphics3D {
 		if (colorType == PDATA_COLOR_INVALID) throw new IllegalArgumentException("Invalid pdata color type");
 		else if(colorType == 0) return;
 
-		preallocPrimBuffers(numPrims, 4);
+		reservePrimBuffers(numPrims, 4);
 
 		int primDataUsed = this.primDataUsed;
 		int[] primData = this.primData;
@@ -1930,6 +1942,8 @@ public class Graphics3D {
 		
 		this.sortPrimCount = sortPrimCount;
 		this.primDataUsed = primDataUsed;
+		
+		flushPrimBufferReserved();
 	}
 	
 	private final void submitLines(
@@ -1940,7 +1954,7 @@ public class Graphics3D {
 		if (colorType == PDATA_COLOR_INVALID) throw new IllegalArgumentException("Invalid pdata color type");
 		else if(colorType == 0) return;
 
-		preallocPrimBuffers(numPrims, 6);
+		reservePrimBuffers(numPrims, 6);
 
 		int primDataUsed = this.primDataUsed;
 		int[] primData = this.primData;
@@ -2060,6 +2074,8 @@ public class Graphics3D {
 		
 		this.sortPrimCount = sortPrimCount;
 		this.primDataUsed = primDataUsed;
+		
+		flushPrimBufferReserved();
 	}
 
 	private final void submitSprites(
@@ -2074,7 +2090,7 @@ public class Graphics3D {
 		
 		bindTexture(tex);
 
-		preallocPrimBuffers(numPrims, 7);
+		reservePrimBuffers(numPrims, 7);
 
 		int primDataUsed = this.primDataUsed;
 		int[] primData = this.primData;
@@ -2239,6 +2255,8 @@ public class Graphics3D {
 		
 		this.sortPrimCount = sortPrimCount;
 		this.primDataUsed = primDataUsed;
+		
+		flushPrimBufferReserved();
 	}
 	
 	private final void processVertices(
@@ -2914,7 +2932,7 @@ public class Graphics3D {
 		boolean tmpLight = (clipPolyMat & Figure.MAT_LIGHTING) != 0;
 		boolean tmpEnv = tmpLight && ((clipPolyMat & Figure.MAT_SPECULAR) != 0);
 		int polyStride = calcPolygonStride(clipPolyHasUVs, clipPolyFlatNorm, tmpLight, tmpEnv);
-		preallocPrimBuffers(vertsCount - 1, polyStride);
+		reservePrimBuffers(vertsCount - 1, polyStride);
 
 		for (int i = 1; i < vertsCount - 1; i++) {
 			int v0 = 0, v1 = i, v2 = i + 1;
