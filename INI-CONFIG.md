@@ -17,6 +17,7 @@ Heap memory usage. Warning, can reduce performance.
 ## Enhancements:  
 ### horizontalFovFix (disabled by default, 0 or 1)  
 Converts horizonal fov to vertical in order to fix narrow camera when portrait mode games are launched in landscape mode.  
+  
 ![Screenshot of a horizontalFovFix](/screenshots/fovfix.png)  
   
 ## Frame buffer related hacks:  
