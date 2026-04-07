@@ -13,9 +13,14 @@ Includes Graphic3D.bind, .flush, .release calls, and figure, primitives, command
   
 ### showHeapUsage (disabled by default, 0 or 1)  
 Heap memory usage. Warning, can reduce performance.  
+
+## Enhancements:  
+### horizontalFovFix (disabled by default, 0 or 1)  
+Converts horizonal fov to vertical in order to fix narrow camera when portrait mode games are launched in landscape mode.  
+![Screenshot of a horizontalFovFix](/screenshots/fovfix.png)  
   
 ## Frame buffer related hacks:  
-### fbClearColor (black by default, specify color in RRGGBB format)  
+### fbClearColor (-1 by default, specify color in RRGGBB format)  
 Compatibility hack, does not affect performance.  
 Color used to clear framebuffer when Graphics3D is bind.  
 Can be used to reduce graphical artifacts in games that draw semitransparent geometry over 2D graphics.  
