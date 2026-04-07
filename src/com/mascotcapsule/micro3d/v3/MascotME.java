@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class MascotME {
-	static String version = "MascotME 1.0";
+	static String version = "MascotME 1.1";
 	
 	// Debug options:
 	
