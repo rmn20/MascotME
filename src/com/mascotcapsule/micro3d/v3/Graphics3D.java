@@ -1455,11 +1455,7 @@ public class Graphics3D {
 			int[] textureCoords, int[] colors
 	) {
 		if (disposed) return;
-		if (
-			layout == null || effect == null || 
-			vertexCoords == null || normals == null || 
-			textureCoords == null || colors == null
-		) {
+		if (layout == null || effect == null || vertexCoords == null) {
 			throw new NullPointerException();
 		}
 		if (numPrimitives <= 0 || numPrimitives > 255) {
@@ -1470,14 +1466,31 @@ public class Graphics3D {
 		}
 		if (boundGraphics == null) throw new IllegalStateException();
 		
+		int normalType = command & PDATA_NORMAL_MASK;
+		
+		boolean hasTextureCoord = (command & PDATA_TEXURE_COORD) != 0;
+		boolean hasNormals = (normalType == PDATA_NORMAL_PER_FACE) || (normalType == PDATA_NORMAL_PER_VERTEX);
+		boolean hasColors = (command & PDATA_COLOR_PER_FACE) != 0;
+
+		int primType = command & 0xFF000000;
+		boolean isPointSprite = (primType == PRIMITVE_POINT_SPRITES);
+
+		if ((hasTextureCoord || isPointSprite) && (texture == null || textureCoords == null)) {
+			throw new NullPointerException("Texture and textureCoords must not be null when texturing/sprites are enabled.");
+		}
+		if (hasNormals && normals == null) {
+			throw new NullPointerException("Normals array must not be null when lighting/normal data is enabled.");
+		}
+		if (hasColors && colors == null) {
+			throw new NullPointerException("Colors array must not be null when face colors are enabled.");
+		}
+		
 		long startTime = System.currentTimeMillis();
 
 		AffineTrans trans = layout.getAffineTrans();
 		setCenter(layout, x, y);
 		setProjection(layout);
 		setEffect(effect);
-
-		int primType = command & 0xFF000000;
 
 		switch (primType) {
 			case PRIMITVE_POINTS:
